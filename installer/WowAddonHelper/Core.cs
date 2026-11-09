@@ -18,7 +18,7 @@ namespace WowAddonHelper
         public string Name;
         public string Title;
         public string Notes;
-        public bool Dev;   // 개발/진단용: 기본으로 체크하지 않는다
+        public bool Dev;   // 진단용 애드온(X-Dev): 기본으로 체크하지 않는다
     }
 
     /// <summary>GitHub 최신 릴리스</summary>
@@ -34,7 +34,6 @@ namespace WowAddonHelper
     public class InstalledState
     {
         public string Version;
-        public bool Dev;
         public List<string> Addons = new List<string>();
     }
 
@@ -211,7 +210,6 @@ namespace WowAddonHelper
                 return new InstalledState
                 {
                     Version = m.TryGetValue("version", out var v) ? v as string : null,
-                    Dev = m.TryGetValue("dev", out var d) && d is bool b && b,
                     Addons = ParseAddons(m).Select(a => a.Name).ToList(),
                 };
             }
@@ -223,7 +221,6 @@ namespace WowAddonHelper
             var m = new Dictionary<string, object>
             {
                 ["version"] = version,
-                ["dev"] = false,
                 ["addons"] = names.ToArray(),
                 ["installedBy"] = "helper " + AppVersion,
                 ["installed"] = DateTime.Now.ToString("s"),

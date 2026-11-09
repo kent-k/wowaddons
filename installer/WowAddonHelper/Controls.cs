@@ -149,7 +149,7 @@ namespace WowAddonHelper
 
             int x = pad + box + Theme.S(12);
             int statusW = Theme.S(150);
-            var title = Info.Title + (Info.Dev ? "  [개발용]" : "");
+            var title = Info.Title + (Info.Dev ? "  [진단용]" : "");
             using (var b = new SolidBrush(Checked ? Theme.Gold : Theme.Text))
                 g.DrawString(title, Theme.HeadFont, b, new RectangleF(x, Theme.S(8), Width - x - statusW, Theme.S(22)));
             using (var b = new SolidBrush(Theme.TextDim))

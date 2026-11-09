@@ -12,7 +12,6 @@ local getMeta = (C_AddOns and C_AddOns.GetAddOnMetadata) or GetAddOnMetadata
 local VERSION = getMeta(ADDON, "Version") or "?"
 local function versionText()
   if VERSION:find("@project%-version@") then return NG .. "빌드 안 됨(소스 그대로)|r" end
-  if VERSION:find("%-dev") then return "|cffffaa00" .. VERSION .. " (개발 빌드)|r" end
   return OK .. VERSION .. "|r"
 end
 

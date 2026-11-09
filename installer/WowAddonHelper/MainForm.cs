@@ -89,7 +89,7 @@ namespace WowAddonHelper
                 await LoadAsync();
                 if (SnapshotPath != null)
                 {
-                    // 개발용: 화면 캡처 없이 창 자체를 그림으로 저장하고 종료 (--snapshot <png>)
+                    // 화면 확인용: 화면 캡처 없이 창 자체를 그림으로 저장하고 종료 (--snapshot <png>)
                     using (var bmp = new Bitmap(Width, Height))
                     {
                         DrawToBitmap(bmp, new Rectangle(0, 0, Width, Height));
@@ -191,14 +191,13 @@ namespace WowAddonHelper
             if (release == null) { list.ResumeLayout(); return; }
 
             var have = new HashSet<string>(installed?.Addons ?? new List<string>(), StringComparer.OrdinalIgnoreCase);
-            // 아무것도 안 깔린 첫 실행이면 개발용이 아닌 애드온을 기본으로 체크해 둔다
+            // 아무것도 안 깔린 첫 실행이면 진단용이 아닌 애드온을 기본으로 체크해 둔다
             bool firstRun = installed == null;
             foreach (var a in release.Addons.OrderBy(a => a.Dev).ThenBy(a => a.Title))
             {
                 var row = new AddonRow { Info = a, Dock = DockStyle.Top, Checked = have.Contains(a.Name) || (firstRun && !a.Dev) };
                 bool isInstalled = have.Contains(a.Name);
                 if (!isInstalled) { row.Status = "설치 안 됨"; row.StatusColor = Theme.TextDim; }
-                else if (installed.Dev) { row.Status = "개발 빌드"; row.StatusColor = Theme.Orange; }
                 else if (installed.Version == release.Version) { row.Status = "최신 v" + release.Version; row.StatusColor = Theme.Green; }
                 else { row.Status = $"업데이트 v{installed.Version} → v{release.Version}"; row.StatusColor = Theme.Yellow; }
                 row.Toggled += (s, e) => UpdateApplyHint();
@@ -216,10 +215,9 @@ namespace WowAddonHelper
             if (addonsDir == null) { SetStatus("게임 폴더를 먼저 정해 주세요.", Theme.Red); return; }
             var want = rows.Where(r => r.Checked).Select(r => r.Info.Name).ToList();
             var have = installed?.Addons ?? new List<string>();
-            bool upToDate = installed != null && !installed.Dev && installed.Version == release.Version;
+            bool upToDate = installed != null && installed.Version == release.Version;
             bool same = want.Count == have.Count && want.All(n => have.Contains(n, StringComparer.OrdinalIgnoreCase));
             if (same && upToDate) SetStatus($"모두 최신입니다 (v{release.Version}).", Theme.Green);
-            else if (installed?.Dev == true) SetStatus("개발 빌드가 깔려 있습니다. 적용하면 릴리스 버전으로 바뀝니다.", Theme.Orange);
             else SetStatus("바뀐 내용이 있습니다. [선택대로 적용]을 누르세요.", Theme.Yellow);
         }
 
