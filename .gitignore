@@ -4,3 +4,4 @@ tools/casc/out/
 *.pkl
 community-listfile.csv
 __pycache__/
+dist/

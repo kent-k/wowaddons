@@ -1,5 +1,6 @@
 ## Interface: 16001, 11508, 11507
-## Title: DNProbe (던전 API 진단)
-## Notes: 인던 안에서 /dnp 입력 → 맵/좌표 API 결과를 출력하고 저장
+## Title: DNProbe |cffaaaaaa(던전 기능 진단)|r
+## Notes: 인던 네비를 만들기 전 기능 검사용. 게임에서 /dnp 입력.
+## Version: @project-version@
 ## SavedVariables: DNProbeDB
 DNProbe.lua
