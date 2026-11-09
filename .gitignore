@@ -5,3 +5,5 @@ tools/casc/out/
 community-listfile.csv
 __pycache__/
 dist/
+installer/**/bin/
+installer/**/obj/
