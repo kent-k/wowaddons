@@ -1,0 +1,6 @@
+# CASC 도구 캐시/산출물
+tools/casc/cache/
+tools/casc/out/
+*.pkl
+community-listfile.csv
+__pycache__/
