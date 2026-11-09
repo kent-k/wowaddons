@@ -49,13 +49,14 @@ GitHub Actions 가 애드온 zip + 목록 + 도우미 exe 를 빌드해 Release 
 
 ```
 addons/              애드온 하나당 폴더 하나 (폴더 이름 = .toc 이름)
+  DungeonNav/        던전 네비: 인던 들어가면 그 던전 지도 자동 표시 (/던전)
   DNProbe/           던전 안 맵/좌표 기능 진단 (개발용)
 installer/
   WowAddonHelper/    애드온 도우미 (C# WinForms, .NET Framework 4.8 → 런타임 설치 불필요)
 tools/
   build.ps1          빌드 (-Install 로컬 설치, -Zip 릴리스 파일, -Helper 도우미 exe)
   release.ps1        릴리스 태그 만들기
-  casc/              게임 데이터(CASC) 읽기 도구 (던전 지도 그림 추출 등)
+  casc/              게임 데이터(CASC) 읽기 도구 (지도 그림 추출, DungeonNav Data.lua 생성)
 .github/workflows/   GitHub Actions 빌드/릴리스
 dist/                빌드 결과 (git 에 안 올림)
 ```

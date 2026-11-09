@@ -1,0 +1,7 @@
+## Interface: 16001, 11508, 11507
+## Title: 던전 네비 |cffaaaaaa(DungeonNav)|r
+## Notes: 인던에 들어가면 그 던전 지도를 자동으로 띄운다. 오리지날 던전/공격대 26곳. /던전 으로 도움말.
+## Version: @project-version@
+## SavedVariables: DungeonNavDB
+Data.lua
+DungeonNav.lua

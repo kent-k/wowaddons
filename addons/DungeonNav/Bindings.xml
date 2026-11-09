@@ -1,0 +1,5 @@
+<Bindings>
+  <Binding name="DUNGEONNAV_TOGGLE" header="DUNGEONNAV">
+    DungeonNav_Toggle()
+  </Binding>
+</Bindings>
