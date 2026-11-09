@@ -11,9 +11,21 @@ namespace WowAddonHelper
         [STAThread]
         static int Main(string[] args)
         {
-            using (var mutex = new Mutex(true, @"Local\wowaddons-helper", out bool first))
+            using (var mutex = new Mutex(false, @"Local\wowaddons-helper"))
             {
-                if (!first) return 0;   // 이미 실행 중
+                // 자기 업데이트 후 다시 시작(--restarted)한 경우엔 이전 창이 닫힐 때까지 기다린다
+                bool got;
+                try { got = mutex.WaitOne(args.Contains("--restarted") ? 15000 : 0); }
+                catch (AbandonedMutexException) { got = true; }
+                if (!got) return 0;   // 이미 실행 중
+                try { return Run(args); }
+                finally { mutex.ReleaseMutex(); }
+            }
+        }
+
+        static int Run(string[] args)
+        {
+            {
                 Core.CleanupOldSelf();
                 if (args.Contains("--auto")) return AutoUpdate();
 

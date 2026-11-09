@@ -317,6 +317,11 @@ namespace WowAddonHelper
         public static void EnsureInstalledCopy()
         {
             var self = Assembly.GetExecutingAssembly().Location;
+            // 이 PC에 처음 설치하는 거면 자동 업데이트를 기본으로 켠다 (끄는 건 창에서)
+            if (!File.Exists(InstalledExe) && !File.Exists(ConfigPath))
+            {
+                try { AutoStartEnabled = true; } catch { }
+            }
             if (!string.Equals(self, InstalledExe, StringComparison.OrdinalIgnoreCase))
             {
                 var needCopy = !File.Exists(InstalledExe) ||
@@ -329,7 +334,7 @@ namespace WowAddonHelper
             }
             try
             {
-                var menu = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Programs), "애드온 도우미.lnk");
+                var menu = StartMenuLink;
                 if (!File.Exists(menu)) CreateShortcut(menu, InstalledExe);
             }
             catch { }
@@ -344,6 +349,37 @@ namespace WowAddonHelper
             lnk.WorkingDirectory = Path.GetDirectoryName(target);
             lnk.Description = "와우 포에버 애드온 설치/업데이트";
             lnk.Save();
+        }
+
+        static string StartMenuLink =>
+            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Programs), "애드온 도우미.lnk");
+
+        /// <summary>
+        /// 도우미 제거: (선택) 설치한 애드온 삭제, 자동 실행 해제, 시작 메뉴 바로가기 삭제,
+        /// %LOCALAPPDATA%\wowaddons 폴더 삭제(실행 중인 exe 때문에 종료 후 cmd 가 지운다).
+        /// </summary>
+        public static void Uninstall(string addonsDir, bool removeAddons)
+        {
+            if (removeAddons && addonsDir != null)
+            {
+                var st = ReadInstalled(addonsDir);
+                if (st != null)
+                    foreach (var name in st.Addons) RemoveDir(Path.Combine(addonsDir, name));
+                var manifest = Path.Combine(addonsDir, ManifestName);
+                if (File.Exists(manifest)) File.Delete(manifest);
+            }
+            AutoStartEnabled = false;
+            try { if (File.Exists(StartMenuLink)) File.Delete(StartMenuLink); } catch { }
+            Log("도우미 제거" + (removeAddons ? " (애드온 포함)" : ""));
+
+            // 이 프로세스가 끝난 뒤 폴더를 지운다 (실행 중인 exe 는 스스로 못 지움)
+            Process.Start(new ProcessStartInfo("cmd.exe",
+                $"/c ping 127.0.0.1 -n 3 > nul & rmdir /s /q \"{HomeDir}\"")
+            {
+                CreateNoWindow = true,
+                UseShellExecute = false,
+                WindowStyle = ProcessWindowStyle.Hidden,
+            });
         }
 
         public static void CleanupOldSelf()

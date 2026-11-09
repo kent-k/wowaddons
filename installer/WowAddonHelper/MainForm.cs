@@ -22,6 +22,7 @@ namespace WowAddonHelper
         readonly Label statusLabel = new Label();
         readonly Label helpLabel = new Label();
         readonly PaintedClose closeButton = new PaintedClose();
+        readonly WowButton uninstallButton = new WowButton { Text = "도우미 제거" };
 
         string addonsDir;
         ReleaseInfo release;
@@ -79,7 +80,11 @@ namespace WowAddonHelper
             statusLabel.Bounds = new Rectangle(m, Theme.S(452), ClientSize.Width - m * 2 - Theme.S(310), Theme.S(40));
             StyleLabel(statusLabel, Theme.SmallFont, Theme.TextDim);
 
-            Controls.AddRange(new Control[] { closeButton, pathCaption, pathLabel, pathButton, list, helpLabel, autoCheck, refreshButton, applyButton, statusLabel });
+            uninstallButton.Bounds = new Rectangle(ClientSize.Width - m - Theme.S(110), Theme.S(412), Theme.S(110), Theme.S(30));
+            uninstallButton.Font = Theme.SmallFont;
+            uninstallButton.Click += (s, e) => UninstallSelf();
+
+            Controls.AddRange(new Control[] { closeButton, pathCaption, pathLabel, pathButton, list, helpLabel, autoCheck, uninstallButton, refreshButton, applyButton, statusLabel });
 
             Shown += async (s, e) =>
             {
@@ -169,7 +174,7 @@ namespace WowAddonHelper
                 if (await Task.Run(() => Core.UpdateSelf(release)))
                 {
                     SetStatus("도우미 새 버전을 받았습니다. 다시 시작합니다...", Theme.Green);
-                    Process.Start(Core.InstalledExe);
+                    Process.Start(Core.InstalledExe, "--restarted");
                     Close();
                     return;
                 }
@@ -238,6 +243,28 @@ namespace WowAddonHelper
                 Core.Log("적용 실패: " + ex);
             }
             finally { SetBusy(false); }
+        }
+
+        void UninstallSelf()
+        {
+            using (var dlg = new WowDialog("애드온 도우미 제거",
+                "이 PC에서 애드온 도우미를 지웁니다.\n자동 업데이트, 시작 메뉴 바로가기, 설정이 모두 삭제됩니다.\n(받아 둔 exe 파일은 직접 지워 주세요)",
+                "제거", "설치한 애드온도 함께 지우기", true))
+            {
+                if (dlg.ShowDialog(this) != DialogResult.OK) return;
+                try
+                {
+                    Core.Uninstall(addonsDir, dlg.Option.Checked);
+                }
+                catch (Exception ex)
+                {
+                    SetStatus("제거 실패: " + ex.Message, Theme.Red);
+                    return;
+                }
+            }
+            using (var done = new WowDialog("제거 완료", "애드온 도우미를 지웠습니다.\n다시 쓰려면 exe 를 받아 실행하면 됩니다.", "닫기", showCancel: false))
+                done.ShowDialog(this);
+            Close();
         }
 
         // ---------- 창 그리기 / 끌기 ----------
