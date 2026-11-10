@@ -45,7 +45,8 @@ def load_indices():
     return idx
 
 
-def blte_decode(b):
+def blte_decode(b, allow_encrypted=False):
+    """allow_encrypted: 암호화된 조각(아직 공개 안 된 데이터)은 0 으로 채운다 (DB2 처럼 일부만 암호화된 파일용)"""
     assert b[:4] == b"BLTE", b[:4]
     hsize = struct.unpack(">I", b[4:8])[0]
     out = bytearray()
@@ -70,9 +71,11 @@ def blte_decode(b):
         elif mode == b"Z":
             out += zlib.decompress(c[1:])
         elif mode == b"F":
-            out += blte_decode(c[1:])
+            out += blte_decode(c[1:], allow_encrypted)
         elif mode == b"E":
-            raise ValueError("encrypted chunk")
+            if not allow_encrypted or ds is None:
+                raise ValueError("encrypted chunk")
+            out += bytes(ds)
         else:
             raise ValueError("unsupported BLTE mode %r" % mode)
     return bytes(out)
@@ -85,7 +88,7 @@ class Casc:
         self._enc = None
         self._root = None
 
-    def read_ekey(self, ekey_hex_or_bytes):
+    def read_ekey(self, ekey_hex_or_bytes, allow_encrypted=False):
         ek = bytes.fromhex(ekey_hex_or_bytes) if isinstance(ekey_hex_or_bytes, str) else ekey_hex_or_bytes
         ent = self.idx.get(ek[:9])
         if not ent:
@@ -94,7 +97,7 @@ class Casc:
         with open(os.path.join(DATA, "data", "data.%03d" % archive), "rb") as f:
             f.seek(offset)
             raw = f.read(size)
-        return blte_decode(raw[30:])
+        return blte_decode(raw[30:], allow_encrypted)
 
     @property
     def encoding(self):

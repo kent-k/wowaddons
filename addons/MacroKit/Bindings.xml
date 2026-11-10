@@ -1,0 +1,5 @@
+<Bindings>
+  <Binding name="MACROKIT_TOGGLE" header="MACROKIT" category="ADDONS">
+    MacroKit_Toggle()
+  </Binding>
+</Bindings>

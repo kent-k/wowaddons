@@ -1,0 +1,25 @@
+## Interface: 16001, 11508, 11507
+## Title: 매크로 공방 |cffaaaaaa(MacroKit)|r
+## Notes: 템플릿을 골라 빈칸만 채우면 매크로를 만들어 준다. 공통 + 9개 직업. 게임에서 /매공
+## X-Usage-1: 게임에서 /매공 을 입력하면 매크로 공방 창이 열립니다.
+## X-Usage-2: 직업 탭 → 왼쪽 목록에서 템플릿 고르기 → 오른쪽 빈칸(주문·대상) 고르기
+## X-Usage-3: [등록] 을 누른 뒤, 오른쪽에 나온 아이콘을 행동 단축바로 끌어다 놓으면 끝
+## X-Usage-4: 마우스오버 = 공격대 창이나 적에게 마우스를 올린 채 단축키를 누르는 방식
+## X-Usage-5: '내 매크로' 탭에서 만든 매크로를 다시 고치거나 지울 수 있습니다
+## X-Usage-6: 전투 중에는 매크로를 만들 수 없습니다 (블리자드 제한)
+## X-Usage-7: /매공 검사 — 이 클라이언트에서 되는 매크로 기능 검사, /매공 도움말 — 전체 사용법
+## Version: @project-version@
+## SavedVariables: MacroKitDB
+## SavedVariablesPerCharacter: MacroKitCharDB
+Core.lua
+Templates\Common.lua
+Templates\Warlock.lua
+Templates\Shaman.lua
+Templates\Druid.lua
+Templates\Warrior.lua
+Templates\Paladin.lua
+Templates\Hunter.lua
+Templates\Rogue.lua
+Templates\Priest.lua
+Templates\Mage.lua
+UI.lua
