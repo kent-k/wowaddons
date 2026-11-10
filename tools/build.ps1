@@ -11,6 +11,7 @@
 #
 # .toc 에서 읽는 정보 (애드온 도우미 목록에 표시)
 #   ## Title:  이름        ## Notes:  설명        ## X-Dev: 1   진단용 애드온 (기본 체크 안 함)
+#   ## X-Usage-1: ...  ## X-Usage-2: ...   애드온 도우미의 [사용법] 창에 한 줄씩 보여 줄 안내
 param(
     [switch]$Zip,
     [switch]$Helper,
@@ -76,6 +77,9 @@ foreach ($dir in Get-ChildItem (Join-Path $root 'addons') -Directory) {
         title = $(if ($title) { $title } else { $dir.Name })
         notes = Strip-Color $meta['Notes']
         dev   = ($meta['X-Dev'] -in @('1', 'true', 'yes'))
+        usage = @($meta.Keys | Where-Object { $_ -match '^X-Usage-(\d+)$' } |
+                  Sort-Object { [int]($_ -replace '^X-Usage-', '') } |
+                  ForEach-Object { Strip-Color $meta[$_] })
     }
 }
 

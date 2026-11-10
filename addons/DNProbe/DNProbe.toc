@@ -3,5 +3,9 @@
 ## Notes: 인던 네비를 만들기 전 기능 검사용. 게임에서 /dnp 입력.
 ## Version: @project-version@
 ## X-Dev: 1
+## X-Usage-1: 개발 확인용 애드온입니다. 평소에는 설치하지 않아도 됩니다.
+## X-Usage-2: /dnp  —  사용법 보기
+## X-Usage-3: /dnp 검사  —  인던 안에서 실행하면 지도/좌표 기능 검사 결과 창이 뜹니다
+## X-Usage-4: /dnp 지도  —  게임 데이터의 지도 그림 표시 시험
 ## SavedVariables: DNProbeDB
 DNProbe.lua

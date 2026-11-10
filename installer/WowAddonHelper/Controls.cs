@@ -120,11 +120,35 @@ namespace WowAddonHelper
         public string Status = "";
         public Color StatusColor = Theme.TextDim;
         public event EventHandler Toggled;
+        public event EventHandler UsageClicked;
+        bool usageHover;
 
         public AddonRow() { Height = Theme.S(54); }
 
+        // 오른쪽 아래 [사용법] 글자 영역 (안내가 있을 때만)
+        Rectangle UsageRect()
+        {
+            if (Info?.Usage == null || Info.Usage.Count == 0) return Rectangle.Empty;
+            int w = Theme.S(70), h = Theme.S(20);
+            return new Rectangle(Width - w - Theme.S(12), Height - h - Theme.S(6), w, h);
+        }
+
+        protected override void OnMouseMove(MouseEventArgs e)
+        {
+            bool over = UsageRect().Contains(e.Location);
+            if (over != usageHover) { usageHover = over; Invalidate(); }
+            base.OnMouseMove(e);
+        }
+
+        protected override void OnMouseLeave(EventArgs e) { usageHover = false; base.OnMouseLeave(e); }
+
         protected override void OnClick(EventArgs e)
         {
+            if (UsageRect().Contains(PointToClient(Cursor.Position)))
+            {
+                UsageClicked?.Invoke(this, EventArgs.Empty);
+                return;
+            }
             Checked = !Checked;
             Invalidate();
             Toggled?.Invoke(this, EventArgs.Empty);
@@ -156,9 +180,18 @@ namespace WowAddonHelper
                 g.DrawString(string.IsNullOrEmpty(Info.Notes) ? Info.Name : Info.Notes, Theme.SmallFont, b,
                     new RectangleF(x, Theme.S(30), Width - x - statusW, Theme.S(20)), new StringFormat { Trimming = StringTrimming.EllipsisCharacter, FormatFlags = StringFormatFlags.NoWrap });
 
+            var ur = UsageRect();
             using (var b = new SolidBrush(StatusColor))
-                g.DrawString(Status, Theme.BodyFont, b, new RectangleF(Width - statusW - pad, 0, statusW, Height),
+                g.DrawString(Status, Theme.BodyFont, b,
+                    ur.IsEmpty ? new RectangleF(Width - statusW - pad, 0, statusW, Height)
+                               : new RectangleF(Width - statusW - pad, Theme.S(6), statusW, Theme.S(24)),
                     new StringFormat { Alignment = StringAlignment.Far, LineAlignment = StringAlignment.Center });
+            if (!ur.IsEmpty)
+            {
+                using (var b = new SolidBrush(usageHover ? Theme.GoldLight : Theme.GoldMid))
+                using (var f = new Font(Theme.SmallFont, usageHover ? FontStyle.Underline : FontStyle.Regular))
+                    g.DrawString("사용법 ▸", f, b, ur, new StringFormat { Alignment = StringAlignment.Far, LineAlignment = StringAlignment.Center });
+            }
         }
     }
 }

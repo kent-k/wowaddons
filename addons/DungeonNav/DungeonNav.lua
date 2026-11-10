@@ -1,18 +1,20 @@
 -- 던전 네비 (DungeonNav)
 -- 인던에 들어가면 그 던전 지도(게임 데이터의 지도 그림)를 자동으로 띄운다.
--- 인던 안에서 내 좌표를 받을 수 있는 클라이언트라면 내 위치 화살표도 표시한다.
+-- 블리자드가 인던 안 좌표를 애드온에 주지 않으므로, 내 위치는 지도를 클릭해 직접 표시한다.
+-- (언젠가 좌표를 받을 수 있게 되면 화살표도 자동으로 표시한다.)
 
 local ADDON, ns = ...
 local TAG = "|cffffd100[던전 네비]|r "
 local OK, NG, DIM, KEY = "|cff44ff44", "|cffff5555", "|cffaaaaaa", "|cffffff00"
 
 local MAP_W, MAP_H = 1002, 668      -- 지도 그림 중 실제로 보이는 영역 (타일 4x3 = 1024x768 중)
-local MIN_W, MAX_W = 320, 1400
-local DEFAULTS = { width = 640, alpha = 1, autoOpen = true, lastFloor = {}, welcomed = false }
+local MIN_W, MAX_W = 240, 1400
+local DEFAULTS = { width = 640, alpha = 1, autoOpen = true, lastFloor = {}, pins = {}, welcomed = false }
 
 local db                             -- DungeonNavDB
 local current, floorIdx              -- 지금 보여 주는 던전 ID / 층 번호
 local autoOpened = false
+local lastInstance                   -- 마지막으로 들어가 있던 인던 ID (새로 들어오면 표시를 지운다)
 
 local function say(msg) print(TAG .. msg) end
 
@@ -57,6 +59,12 @@ arrow:SetTexture("Interface\\Minimap\\MinimapArrow")
 arrow:SetSize(28, 28)
 arrow:Hide()
 
+-- 내 위치 표시 (지도 클릭으로 직접 찍는 별)
+local pin = canvas:CreateTexture(nil, "OVERLAY")
+pin:SetTexture("Interface\\TargetingFrame\\UI-RaidTargetingIcon_1")
+pin:SetSize(22, 22)
+pin:Hide()
+
 -- 아래 띠: [<] 층 이름 [>]   [목록]          안내
 local prevBtn = CreateFrame("Button", nil, f, "UIPanelButtonTemplate")
 prevBtn:SetSize(28, 22)
@@ -78,7 +86,7 @@ listBtn:SetText("목록")
 listBtn:SetPoint("LEFT", nextBtn, "RIGHT", 10, 0)
 
 local hint = f:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
-hint:SetPoint("BOTTOMRIGHT", -12, 13)
+hint:SetPoint("BOTTOMRIGHT", -24, 13)   -- 오른쪽 끝은 크기 손잡이 자리
 hint:SetJustifyH("RIGHT")
 
 local posText = f:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
@@ -97,8 +105,66 @@ local function layout()
   end
   f:SetSize(w + 16, h + 28 + 40)
   f:SetAlpha(db.alpha)
-  hint:SetText(w >= 560 and "휠: 층 바꾸기   Ctrl+휠: 크기   Alt+휠: 투명도" or "휠: 층  Ctrl+휠: 크기")
+  floorText:SetWidth(w >= 360 and 110 or 70)
+  -- 아래 띠 안내: 창이 좁으면 줄이거나 숨긴다 (버튼과 겹치지 않게)
+  if w >= 760 then
+    hint:SetText("클릭: 내 위치 표시   우클릭: 지우기   휠: 층   모서리 끌기/Ctrl+휠: 크기   Alt+휠: 투명도")
+  elseif w >= 480 then
+    hint:SetText("클릭: 위치  우클릭: 지우기  휠: 층  모서리: 크기")
+  else
+    hint:SetText("")
+  end
 end
+
+-- 지금 층의 내 위치 표시를 그린다
+local function showPin()
+  local p = current and db.pins[current] and db.pins[current][floorIdx]
+  if not p then pin:Hide() return end
+  local w, h = canvas:GetSize()
+  pin:ClearAllPoints()
+  pin:SetPoint("CENTER", canvas, "TOPLEFT", p[1] * w, -p[2] * h)
+  pin:Show()
+end
+
+-- 지도 크기 바꾸기 (모서리 손잡이, Ctrl+휠, /던전 크기 공통)
+local function setWidth(w)
+  db.width = math.max(MIN_W, math.min(MAX_W, math.floor(w)))
+  layout()
+  showPin()
+end
+
+-- 오른쪽 아래 모서리 손잡이: 끌어서 크기 조절 (왼쪽 위는 제자리에 둔다)
+local grip = CreateFrame("Button", nil, f)
+grip:SetSize(16, 16)
+grip:SetPoint("BOTTOMRIGHT", -3, 3)
+grip:SetFrameLevel(f:GetFrameLevel() + 10)
+grip:SetNormalTexture("Interface\\ChatFrame\\UI-ChatIM-SizeGrabber-Up")
+grip:SetHighlightTexture("Interface\\ChatFrame\\UI-ChatIM-SizeGrabber-Highlight")
+grip:SetPushedTexture("Interface\\ChatFrame\\UI-ChatIM-SizeGrabber-Down")
+grip:SetScript("OnEnter", function(self)
+  GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+  GameTooltip:SetText("끌어서 지도 크기 바꾸기")
+  GameTooltip:AddLine("지도 위에서 Ctrl+휠, 또는 /던전 크기 400 으로도 됩니다.", 1, 1, 1, true)
+  GameTooltip:Show()
+end)
+grip:SetScript("OnLeave", function() GameTooltip:Hide() end)
+grip:SetScript("OnMouseDown", function(self)
+  -- 크기가 바뀌어도 왼쪽 위가 움직이지 않게 기준점을 왼쪽 위로 바꾼다
+  local l, t = f:GetLeft(), f:GetTop()
+  f:ClearAllPoints()
+  f:SetPoint("TOPLEFT", UIParent, "BOTTOMLEFT", l, t)
+  self.startX = GetCursorPosition() / f:GetEffectiveScale()
+  self.startW = db.width
+  self:SetScript("OnUpdate", function()
+    local x = GetCursorPosition() / f:GetEffectiveScale()
+    setWidth(self.startW + (x - self.startX))
+  end)
+end)
+grip:SetScript("OnMouseUp", function(self)
+  self:SetScript("OnUpdate", nil)
+  local point, _, rel, x, y = f:GetPoint()
+  db.point = { point, rel, x, y }
+end)
 
 local function showFloor()
   local d = ns.Dungeons[current]
@@ -112,6 +178,7 @@ local function showFloor()
   prevBtn:SetEnabled(multi and floorIdx > 1)
   nextBtn:SetEnabled(multi and floorIdx < #d.floors)
   db.lastFloor[current] = floorIdx
+  showPin()
 end
 
 local function open(id, floor)
@@ -137,13 +204,40 @@ nextBtn:SetScript("OnClick", function() changeFloor(1) end)
 canvas:EnableMouseWheel(true)
 canvas:SetScript("OnMouseWheel", function(_, delta)
   if IsControlKeyDown() then
-    db.width = math.max(MIN_W, math.min(MAX_W, db.width + delta * 40))
-    layout()
+    setWidth(db.width + delta * 40)
   elseif IsAltKeyDown() then
     db.alpha = math.max(0.2, math.min(1, db.alpha + delta * 0.1))
     f:SetAlpha(db.alpha)
   else
     changeFloor(-delta)   -- 휠을 아래로 굴리면 다음 층
+  end
+end)
+
+-- 지도 클릭: 왼쪽 = 내 위치 표시, 오른쪽 = 지우기, 끌기 = 창 이동 ----------------
+
+local dragging = false
+canvas:EnableMouse(true)
+canvas:RegisterForDrag("LeftButton")
+canvas:SetScript("OnDragStart", function() dragging = true; f:StartMoving() end)
+canvas:SetScript("OnDragStop", function()
+  f:GetScript("OnDragStop")(f)
+  dragging = false
+end)
+canvas:SetScript("OnMouseUp", function(self, button)
+  if dragging or not current then return end
+  if button == "RightButton" then
+    if db.pins[current] then db.pins[current][floorIdx] = nil end
+    showPin()
+  elseif button == "LeftButton" then
+    local cx, cy = GetCursorPosition()
+    local s = self:GetEffectiveScale()
+    local w, h = self:GetSize()
+    local x = (cx / s - self:GetLeft()) / w
+    local y = (self:GetTop() - cy / s) / h
+    if x < 0 or x > 1 or y < 0 or y > 1 then return end
+    db.pins[current] = db.pins[current] or {}
+    db.pins[current][floorIdx] = { x, y }
+    showPin()
   end
 end)
 
@@ -187,7 +281,7 @@ local function updateArrow()
   if pos then x, y = pos:GetXY() end
   if not x or (x == 0 and y == 0) then
     arrow:Hide()
-    setPosState("blocked", "내 위치: 이 클라이언트는 인던 안 좌표를 주지 않음")
+    setPosState("blocked", "인던 안 좌표는 블리자드가 막음 · 클릭으로 위치 표시")
     return
   end
   local fi = floorForUiMap(uiMapID)
@@ -288,6 +382,11 @@ BINDING_NAME_DUNGEONNAV_TOGGLE = "던전 지도 열기/닫기"
 
 local function onZoneChanged()
   local iid = currentInstance()
+  if iid ~= lastInstance then
+    if iid and db.pins[iid] then db.pins[iid] = nil end   -- 새로 들어온 인던: 지난번 위치 표시는 지운다
+    lastInstance = iid
+    if iid == current then showPin() end
+  end
   if iid then
     if db.autoOpen and (current ~= iid or not f:IsShown()) then
       open(iid)
@@ -310,9 +409,11 @@ local function showHelp()
     "  " .. KEY .. "/던전 목록|r       던전 목록 열기",
     "  " .. KEY .. "/던전 <이름>|r     이름 일부로 열기  예) " .. KEY .. "/던전 검은바위|r",
     "  " .. KEY .. "/던전 자동|r       인던 들어갈 때 자동으로 열기 켜기/끄기 (지금: " .. (db.autoOpen and OK .. "켜짐|r" or NG .. "꺼짐|r") .. ")",
+    "  " .. KEY .. "/던전 크기 400|r   지도 크기 바꾸기 (" .. MIN_W .. "~" .. MAX_W .. ", 창 오른쪽 아래 모서리를 끌어도 됨)",
     "  " .. KEY .. "/던전 초기화|r     창 위치/크기/투명도 되돌리기",
     "  " .. KEY .. "/던전 도움말|r     이 안내",
-    "|cffffd100지도 위에서:|r 휠 = 층 바꾸기, Ctrl+휠 = 크기, Alt+휠 = 투명도, 드래그 = 이동",
+    "|cffffd100지도 위에서:|r 클릭 = 내 위치에 별 표시, 우클릭 = 지우기, 휠 = 층 바꾸기, Ctrl+휠 = 크기, Alt+휠 = 투명도, 끌기 = 이동",
+    "|cffffd100내 위치 화살표가 없는 이유:|r 블리자드가 인던 안에서는 애드온에 좌표를 주지 않습니다(모든 애드온 공통). 대신 지도를 클릭해 별로 표시하세요. 층마다 하나씩, 인던에 새로 들어오면 지워집니다.",
     "|cffffd100단축키:|r ESC > 설정 > 단축키 > 던전 네비 에서 지정할 수 있습니다.",
   }
   for _, l in ipairs(lines) do print(TAG .. l) end
@@ -337,11 +438,20 @@ local function slash(msg)
   elseif lower == "자동" or lower == "auto" then
     db.autoOpen = not db.autoOpen
     say("인던 들어갈 때 자동 열기: " .. (db.autoOpen and OK .. "켜짐|r" or NG .. "꺼짐|r"))
+  elseif lower:match("^크기") or lower:match("^size") then
+    local n = tonumber(msg:match("(%d+)"))
+    if n then
+      setWidth(n)
+      say(("지도 너비: %d (가능한 범위 %d~%d)"):format(db.width, MIN_W, MAX_W))
+    else
+      say(("지도 너비는 지금 %d 입니다. 예) %s/던전 크기 400|r  (범위 %d~%d, 창 오른쪽 아래 모서리를 끌어도 됩니다)"):format(db.width, KEY, MIN_W, MAX_W))
+    end
   elseif lower == "초기화" or lower == "reset" then
     db.width, db.alpha, db.point = DEFAULTS.width, DEFAULTS.alpha, nil
     f:ClearAllPoints()
     f:SetPoint("CENTER")
     layout()
+    showPin()
     say("창 위치/크기/투명도를 되돌렸습니다.")
   else
     local id = findByName(msg)
@@ -365,7 +475,7 @@ local ev = CreateFrame("Frame")
 ev:RegisterEvent("ADDON_LOADED")
 ev:RegisterEvent("PLAYER_ENTERING_WORLD")
 ev:RegisterEvent("ZONE_CHANGED_NEW_AREA")
-ev:SetScript("OnEvent", function(_, event, arg1)
+ev:SetScript("OnEvent", function(_, event, arg1, arg2)
   if event == "ADDON_LOADED" then
     if arg1 ~= ADDON then return end
     DungeonNavDB = DungeonNavDB or {}
@@ -389,6 +499,7 @@ ev:SetScript("OnEvent", function(_, event, arg1)
         say("버전 " .. versionText() .. " 로드됨. 도움말: " .. KEY .. "/던전 도움말|r")
       end
     end
+    if arg2 then lastInstance = currentInstance() end   -- /reload 는 새로 들어온 것이 아니므로 표시를 지우지 않는다
     onZoneChanged()
   else
     onZoneChanged()

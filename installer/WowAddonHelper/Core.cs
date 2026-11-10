@@ -19,6 +19,7 @@ namespace WowAddonHelper
         public string Title;
         public string Notes;
         public bool Dev;   // 진단용 애드온(X-Dev): 기본으로 체크하지 않는다
+        public List<string> Usage = new List<string>();   // [사용법] 창에 보여 줄 안내 (toc 의 X-Usage-N)
     }
 
     /// <summary>GitHub 최신 릴리스</summary>
@@ -193,6 +194,8 @@ namespace WowAddonHelper
                         Title = d.TryGetValue("title", out var t) ? t as string : (string)d["name"],
                         Notes = d.TryGetValue("notes", out var n) ? n as string ?? "" : "",
                         Dev = d.TryGetValue("dev", out var dv) && dv is bool b && b,
+                        Usage = d.TryGetValue("usage", out var u) && u is System.Collections.ArrayList ul
+                            ? ul.OfType<string>().ToList() : new List<string>(),
                     });
             }
             return list;

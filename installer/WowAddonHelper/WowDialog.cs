@@ -1,3 +1,4 @@
+using System;
 using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Windows.Forms;
@@ -18,7 +19,11 @@ namespace WowAddonHelper
             ShowInTaskbar = false;
             DoubleBuffered = true;
             BackColor = Theme.BgBottom;
-            ClientSize = new Size(Theme.S(420), Theme.S(optionText != null ? 250 : 210));
+            // 설명이 길면 창을 넓히고 높인다 (기본: 420 x 210, 설명 칸 80)
+            int width = Theme.S(message.Length > 160 ? 520 : 420);
+            int msgH = Math.Max(Theme.S(80), TextRenderer.MeasureText(message, Theme.BodyFont,
+                new Size(width - Theme.S(48), 0), TextFormatFlags.WordBreak).Height + Theme.S(8));
+            ClientSize = new Size(width, Theme.S(130) + msgH + Theme.S(optionText != null ? 40 : 0));
             KeyPreview = true;
             KeyDown += (s, e) => { if (e.KeyCode == Keys.Escape) { DialogResult = DialogResult.Cancel; Close(); } };
 
@@ -29,13 +34,13 @@ namespace WowAddonHelper
                 Font = Theme.BodyFont,
                 ForeColor = Theme.Text,
                 BackColor = Color.Transparent,
-                Bounds = new Rectangle(m, Theme.S(60), ClientSize.Width - m * 2, Theme.S(80)),
+                Bounds = new Rectangle(m, Theme.S(60), ClientSize.Width - m * 2, msgH),
             };
             Controls.Add(msg);
 
             if (optionText != null)
             {
-                Option = new WowCheckBox { Text = optionText, Checked = optionChecked, Bounds = new Rectangle(m, Theme.S(146), ClientSize.Width - m * 2, Theme.S(28)) };
+                Option = new WowCheckBox { Text = optionText, Checked = optionChecked, Bounds = new Rectangle(m, Theme.S(66) + msgH, ClientSize.Width - m * 2, Theme.S(28)) };
                 Controls.Add(Option);
             }
 

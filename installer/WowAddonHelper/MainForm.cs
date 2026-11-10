@@ -206,6 +206,7 @@ namespace WowAddonHelper
                 else if (installed.Version == release.Version) { row.Status = "최신 v" + release.Version; row.StatusColor = Theme.Green; }
                 else { row.Status = $"업데이트 v{installed.Version} → v{release.Version}"; row.StatusColor = Theme.Yellow; }
                 row.Toggled += (s, e) => UpdateApplyHint();
+                row.UsageClicked += (s, e) => ShowUsage(a);
                 rows.Add(row);
             }
             // Dock=Top 은 나중에 넣은 게 위로 가므로 거꾸로 넣는다
@@ -243,6 +244,14 @@ namespace WowAddonHelper
                 Core.Log("적용 실패: " + ex);
             }
             finally { SetBusy(false); }
+        }
+
+        void ShowUsage(AddonInfo a)
+        {
+            var text = string.Join("\n", a.Usage.Select(l => "• " + l));
+            if (!a.Dev) text += "\n\n설치/업데이트 후 게임에서 /reload 를 입력하세요 (처음 설치는 게임 재시작).";
+            using (var dlg = new WowDialog(a.Title + " 사용법", text, "닫기", showCancel: false))
+                dlg.ShowDialog(this);
         }
 
         void UninstallSelf()
