@@ -49,16 +49,17 @@ GitHub Actions 가 애드온 zip + 목록 + 도우미 exe 를 빌드해 Release 
 
 ```
 addons/              애드온 하나당 폴더 하나 (폴더 이름 = .toc 이름)
-  DungeonNav/        던전 네비: 인던 들어가면 그 던전 지도 자동 표시 (/던전)
+  DungeonNav/        던전 네비: 인던 들어가면 그 던전 지도 + 그 던전 퀘스트 목록 자동 표시 (/던전)
   DNProbe/           던전 안 맵/좌표 기능 진단 (진단용)
   MacroKit/          매크로 공방: 템플릿 골라 빈칸 채우면 매크로 생성 (/매공)
+  QoLKit/            편의 모음: 빠른 줍기, 회색 템 판매, 자동 수리, 쿨다운 숫자, 우편 모두 받기, 퀘스트 빠른 진행 (/편의)
 installer/
   WowAddonHelper/    애드온 도우미 (C# WinForms, .NET Framework 4.8 → 런타임 설치 불필요)
 tools/
   build.ps1          빌드 (-Zip 릴리스 파일, -Helper 도우미 exe) — 보통 GitHub Actions 가 실행
   release.ps1        릴리스 태그 만들기
   casc/              게임 데이터(CASC) 읽기 도구 (지도 그림 추출, DungeonNav Data.lua 생성, check_spells.py 주문 번호 검증)
-docs/                개발 문서 (MacroKit.md 매크로 공방 설계, MacroKit-spells.txt 주문 번호 검증 결과)
+docs/                개발 문서 (MacroKit.md, MacroKit-spells.txt 주문 번호 검증 결과, QoLKit.md)
 .github/workflows/   GitHub Actions 빌드/릴리스
 dist/                빌드 결과 (git 에 안 올림)
 ```

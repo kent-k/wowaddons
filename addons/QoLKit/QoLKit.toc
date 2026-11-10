@@ -1,0 +1,18 @@
+## Interface: 16001, 11508, 11507
+## Title: 편의 모음 |cffaaaaaa(QoLKit)|r
+## Notes: 빠른 줍기, 회색 템 판매, 자동 수리, 쿨다운 숫자, 우편 모두 받기, 퀘스트 빠른 진행. 게임에서 /편의
+## X-Usage-1: 설치하면 모든 기능이 켜집니다. 켜고 끄기: 게임에서 /편의
+## X-Usage-2: 빠른 줍기 — 자동 줍기일 때 즉시 전부 줍기 (게임 설정의 자동 줍기 필요, /편의 에서 켤 수 있음)
+## X-Usage-3: 회색 템 판매·자동 수리 — 상인 창을 열면 알아서. 금액은 채팅에 한 줄
+## X-Usage-4: 쿨다운 숫자 — 단축바 아이콘 위에 남은 시간
+## X-Usage-5: 우편 모두 받기 — 우편함 위쪽의 [모두 받기] 버튼 (착불 우편 제외)
+## X-Usage-6: 퀘스트 빠른 진행 — Shift 를 누른 채 NPC 에게 말 걸기 (보상 고르는 퀘스트는 직접)
+## X-Usage-7: /편의 도움말 — 게임 안에서 전체 사용법과 지금 켜진 기능 보기
+## Version: @project-version@
+## SavedVariables: QoLKitDB
+Core.lua
+Loot.lua
+Merchant.lua
+Cooldown.lua
+Mail.lua
+Quest.lua

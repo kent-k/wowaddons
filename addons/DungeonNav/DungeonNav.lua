@@ -8,8 +8,8 @@ local TAG = "|cffffd100[던전 네비]|r "
 local OK, NG, DIM, KEY = "|cff44ff44", "|cffff5555", "|cffaaaaaa", "|cffffff00"
 
 local MAP_W, MAP_H = 1002, 668      -- 지도 그림 중 실제로 보이는 영역 (타일 4x3 = 1024x768 중)
-local MIN_W, MAX_W = 240, 1400
-local DEFAULTS = { width = 640, alpha = 1, autoOpen = true, lastFloor = {}, pins = {}, welcomed = false }
+local MIN_W, MAX_W = 300, 1400
+local DEFAULTS = { width = 640, alpha = 1, autoOpen = true, lastFloor = {}, pins = {}, welcomed = false, questPanel = true }
 
 local db                             -- DungeonNavDB
 local current, floorIdx              -- 지금 보여 주는 던전 ID / 층 번호
@@ -107,9 +107,9 @@ local function layout()
   f:SetAlpha(db.alpha)
   floorText:SetWidth(w >= 360 and 110 or 70)
   -- 아래 띠 안내: 창이 좁으면 줄이거나 숨긴다 (버튼과 겹치지 않게)
-  if w >= 760 then
+  if w >= 860 then
     hint:SetText("클릭: 내 위치 표시   우클릭: 지우기   휠: 층   모서리 끌기/Ctrl+휠: 크기   Alt+휠: 투명도")
-  elseif w >= 480 then
+  elseif w >= 600 then
     hint:SetText("클릭: 위치  우클릭: 지우기  휠: 층  모서리: 크기")
   else
     hint:SetText("")
@@ -380,6 +380,135 @@ end
 BINDING_HEADER_DUNGEONNAV = "던전 네비"
 BINDING_NAME_DUNGEONNAV_TOGGLE = "던전 지도 열기/닫기"
 
+-- 던전 퀘스트 목록 (지도 창 왼쪽) ----------------------------------------------------
+-- 퀘스트 목록은 지역 머리글 아래에 묶이고, 던전 퀘스트는 던전 이름 머리글 아래에 들어간다.
+-- 지금 인던 이름과 같은 머리글 아래 퀘스트만 보여 준다.
+
+local questBtn = CreateFrame("Button", nil, f, "UIPanelButtonTemplate")
+questBtn:SetSize(64, 22)
+questBtn:SetText("퀘스트")
+questBtn:SetPoint("LEFT", listBtn, "RIGHT", 6, 0)
+
+local qp = CreateFrame("Frame", "DungeonNavQuestFrame", f, "BasicFrameTemplateWithInset")
+qp:SetPoint("TOPRIGHT", f, "TOPLEFT", 2, 0)
+qp:SetPoint("BOTTOMRIGHT", f, "BOTTOMLEFT", 2, 0)
+qp:SetWidth(230)
+qp:Hide()
+qp.title = qp:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+qp.title:SetPoint("TOP", 0, -5)
+qp.title:SetText("이 던전 퀘스트")
+qp.text = qp:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+qp.text:SetPoint("TOPLEFT", 12, -30)
+qp.text:SetPoint("RIGHT", -12, 0)
+qp.text:SetJustifyH("LEFT")
+qp.text:SetJustifyV("TOP")
+qp.text:SetSpacing(2)
+
+local function squash(s) return (s or ""):gsub("%s", "") end
+
+-- 퀘스트 목록 읽기 (옛 API / 새 API)
+local function questEntries()
+  local list = {}
+  if GetNumQuestLogEntries and GetQuestLogTitle then
+    local n = GetNumQuestLogEntries()
+    for i = 1, n do
+      local title, level, _, isHeader, isCollapsed, isComplete = GetQuestLogTitle(i)
+      list[#list + 1] = { index = i, title = title, level = level, header = isHeader, collapsed = isCollapsed, complete = isComplete == 1 or isComplete == true }
+    end
+  elseif C_QuestLog and C_QuestLog.GetNumQuestLogEntries then
+    for i = 1, C_QuestLog.GetNumQuestLogEntries() do
+      local q = C_QuestLog.GetInfo(i)
+      if q then
+        list[#list + 1] = { index = i, title = q.title, level = q.level, header = q.isHeader, collapsed = q.isCollapsed,
+          complete = q.questID and C_QuestLog.IsComplete and C_QuestLog.IsComplete(q.questID) }
+      end
+    end
+  end
+  return list
+end
+
+local function objectives(index)
+  local out = {}
+  if GetNumQuestLeaderBoards and GetQuestLogLeaderBoard then
+    for j = 1, (GetNumQuestLeaderBoards(index) or 0) do
+      local text, _, finished = GetQuestLogLeaderBoard(j, index)
+      if text then out[#out + 1] = { text = text, done = finished } end
+    end
+  end
+  return out
+end
+
+local function dungeonQuests()
+  local name = GetInstanceInfo()
+  local want = { squash(name) }
+  if current and ns.Dungeons[current] then want[2] = squash(ns.Dungeons[current].name) end
+  local found, collapsed, quests = false, false, {}
+  local inside = false
+  for _, e in ipairs(questEntries()) do
+    if e.header then
+      local h = squash(e.title)
+      inside = false
+      for _, w in ipairs(want) do
+        if w ~= "" and (h == w or h:find(w, 1, true) or w:find(h, 1, true)) then inside = true end
+      end
+      if inside then found = true; collapsed = e.collapsed and true or false end
+    elseif inside then
+      e.objectives = objectives(e.index)
+      quests[#quests + 1] = e
+    end
+  end
+  return found, collapsed, quests
+end
+
+local function refreshQuests()
+  if not qp:IsShown() then return end
+  local found, collapsed, quests = dungeonQuests()
+  local L = {}
+  if not currentInstance() then
+    L[#L + 1] = "|cffaaaaaa인던 안에서 그 던전의 퀘스트를 보여 줍니다.|r"
+  elseif not found then
+    L[#L + 1] = "|cffaaaaaa퀘스트 목록에 이 던전 퀘스트가 없습니다.|r"
+    L[#L + 1] = " "
+    L[#L + 1] = "|cffaaaaaa(퀘스트 목록에서 던전 이름 아래 묶인 퀘스트만 보여 줍니다)|r"
+  elseif collapsed then
+    L[#L + 1] = "|cffffd100퀘스트 목록에서 이 던전 묶음이 접혀 있습니다.|r"
+    L[#L + 1] = "퀘스트 목록(L)을 열고 던전 이름 옆 [+] 를 눌러 펼치면 여기에 보입니다."
+  elseif #quests == 0 then
+    L[#L + 1] = "|cffaaaaaa이 던전 퀘스트가 없습니다.|r"
+  else
+    for _, q in ipairs(quests) do
+      local color = q.complete and "|cff44ff44" or "|cffffd100"
+      L[#L + 1] = color .. "[" .. tostring(q.level or "?") .. "] " .. (q.title or "?") .. (q.complete and "  (완료)" or "") .. "|r"
+      for _, o in ipairs(q.objectives or {}) do
+        L[#L + 1] = "   " .. (o.done and "|cff888888" or "|cffffffff") .. "- " .. o.text .. "|r"
+      end
+      L[#L + 1] = " "
+    end
+  end
+  qp.text:SetText(table.concat(L, "\n"))
+end
+
+local function setQuestShown(on)
+  db.questPanel = on
+  qp:SetShown(on)
+  refreshQuests()
+end
+questBtn:SetScript("OnClick", function() setQuestShown(not qp:IsShown()) end)
+questBtn:SetScript("OnEnter", function(self)
+  GameTooltip:SetOwner(self, "ANCHOR_TOP")
+  GameTooltip:SetText("이 던전 퀘스트", 1, 1, 1)
+  GameTooltip:AddLine("퀘스트 목록에서 지금 던전에 해당하는 퀘스트와 목표 진행도를 지도 왼쪽에 보여 줍니다.", nil, nil, nil, true)
+  GameTooltip:Show()
+end)
+questBtn:SetScript("OnLeave", function() GameTooltip:Hide() end)
+f:HookScript("OnShow", function()
+  qp:SetShown(db.questPanel and currentInstance() ~= nil)
+  refreshQuests()
+end)
+local qev = CreateFrame("Frame")
+qev:RegisterEvent("QUEST_LOG_UPDATE")
+qev:SetScript("OnEvent", refreshQuests)
+
 local function onZoneChanged()
   local iid = currentInstance()
   if iid ~= lastInstance then
@@ -412,6 +541,7 @@ local function showHelp()
     "  " .. KEY .. "/던전 크기 400|r   지도 크기 바꾸기 (" .. MIN_W .. "~" .. MAX_W .. ", 창 오른쪽 아래 모서리를 끌어도 됨)",
     "  " .. KEY .. "/던전 초기화|r     창 위치/크기/투명도 되돌리기",
     "  " .. KEY .. "/던전 도움말|r     이 안내",
+    "|cffffd100[퀘스트] 버튼:|r 인던 안에서 그 던전의 퀘스트와 목표 진행도를 지도 왼쪽에 보여 줍니다.",
     "|cffffd100지도 위에서:|r 클릭 = 내 위치에 별 표시, 우클릭 = 지우기, 휠 = 층 바꾸기, Ctrl+휠 = 크기, Alt+휠 = 투명도, 끌기 = 이동",
     "|cffffd100내 위치 화살표가 없는 이유:|r 블리자드가 인던 안에서는 애드온에 좌표를 주지 않습니다(모든 애드온 공통). 대신 지도를 클릭해 별로 표시하세요. 층마다 하나씩, 인던에 새로 들어오면 지워집니다.",
     "|cffffd100단축키:|r ESC > 설정 > 단축키 > 던전 네비 에서 지정할 수 있습니다.",

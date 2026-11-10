@@ -1,0 +1,5 @@
+<Bindings>
+  <Binding name="QOLKIT_TOGGLE" header="QOLKIT" category="ADDONS">
+    QoLKit_Toggle()
+  </Binding>
+</Bindings>

@@ -8,7 +8,8 @@
 ## X-Usage-5: 지도 클릭 = 내 위치에 별 표시, 우클릭 = 지우기
 ## X-Usage-6: 크기 = 창 오른쪽 아래 모서리 끌기, Ctrl+휠, 또는 /던전 크기 400
 ## X-Usage-7: 휠 = 층 바꾸기, 끌기 = 창 이동, ESC = 닫기
-## X-Usage-8: 인던 안에서는 블리자드가 좌표를 막아 내 위치 화살표가 안 나옵니다.
+## X-Usage-8: [퀘스트] 버튼 = 이 던전 퀘스트와 목표 진행도를 지도 왼쪽에 표시
+## X-Usage-9: 인던 안에서는 블리자드가 좌표를 막아 내 위치 화살표가 안 나옵니다.
 ## Version: @project-version@
 ## SavedVariables: DungeonNavDB
 Data.lua
