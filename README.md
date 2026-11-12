@@ -53,13 +53,14 @@ addons/              애드온 하나당 폴더 하나 (폴더 이름 = .toc 이
   DNProbe/           던전 안 맵/좌표 기능 진단 (진단용)
   MacroKit/          매크로 공방: 템플릿 골라 빈칸 채우면 매크로 생성 (/매공)
   QoLKit/            편의 모음: 빠른 줍기, 회색 템 판매, 자동 수리, 쿨다운 숫자, 우편 모두 받기, 퀘스트 빠른 진행 (/편의)
+  KillShot/          킬각: 대상을 한 방에 잡을 수 있는 스킬을 단축바에서 반짝임 (/킬각)
 installer/
   WowAddonHelper/    애드온 도우미 (C# WinForms, .NET Framework 4.8 → 런타임 설치 불필요)
 tools/
   build.ps1          빌드 (-Zip 릴리스 파일, -Helper 도우미 exe) — 보통 GitHub Actions 가 실행
   release.ps1        릴리스 태그 만들기
   casc/              게임 데이터(CASC) 읽기 도구 (지도 그림 추출, DungeonNav Data.lua 생성, check_spells.py 주문 번호 검증)
-docs/                개발 문서 (MacroKit.md, MacroKit-spells.txt 주문 번호 검증 결과, QoLKit.md)
+docs/                개발 문서 (MacroKit.md, MacroKit-spells.txt 주문 번호 검증 결과, QoLKit.md, KillShot.md)
 .github/workflows/   GitHub Actions 빌드/릴리스
 dist/                빌드 결과 (git 에 안 올림)
 ```
