@@ -6,6 +6,22 @@
 local ADDON = ...
 local TAG = "|cffffd100[퀘스트 비서]|r "
 local OK, NG, DIM, KEY, WARN = "|cff44ff44", "|cffff5555", "|cffaaaaaa", "|cffffff00", "|cffffaa33"
+-- 채팅 출력: 내 화면에만 보이는 글이다 (다른 사람에게 보내지 않음).
+-- 1번 채팅창(보통 길드·일반이 섞인 창) 대신 "시스템 메시지"를 받는 창에 쓴다.
+local function chatFrame()
+  for i = 1, (NUM_CHAT_WINDOWS or 10) do
+    local f = _G["ChatFrame" .. i]
+    if f and f.IsEventRegistered and f:IsEventRegistered("CHAT_MSG_SYSTEM") and f.AddMessage then
+      local shown = f:IsShown() or (f.isDocked and true)
+      if shown then return f end
+    end
+  end
+  return DEFAULT_CHAT_FRAME
+end
+local function print(msg)
+  local f = chatFrame()
+  if f and f.AddMessage then f:AddMessage(msg) else _G.print(msg) end
+end
 local function say(msg) print(TAG .. msg) end
 
 local getMeta = (C_AddOns and C_AddOns.GetAddOnMetadata) or GetAddOnMetadata
