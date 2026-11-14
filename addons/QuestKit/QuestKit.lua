@@ -3,7 +3,7 @@
 -- 2) 몹/아이템 툴팁에 퀘스트 진행도, 3) 퀘스트 목표를 다 채우면 알림, 4) 퀘스트 목록에 레벨 표시.
 -- 퀘스트 데이터베이스(Questie 같은 지도 표시)는 없다. 게임이 주는 퀘스트 목록과 가방만 본다.
 
-local ADDON = ...
+local ADDON, ns = ...
 local TAG = "|cffffd100[퀘스트 비서]|r "
 local OK, NG, DIM, KEY, WARN = "|cff44ff44", "|cffff5555", "|cffaaaaaa", "|cffffff00", "|cffffaa33"
 -- 채팅 출력: 내 화면에만 보이는 글이다 (다른 사람에게 보내지 않음).
@@ -181,7 +181,62 @@ end
 
 local function questTitle(key)
   if active[key] then return active[key].title end
-  return (type(key) == "number" and db.titles[key]) or tostring(key)
+  if type(key) ~= "number" then return tostring(key) end
+  if db.titles[key] then return db.titles[key] end
+  local t = C_QuestLog and C_QuestLog.GetTitleForQuestID and C_QuestLog.GetTitleForQuestID(key)
+  if t and t ~= "" then return t end
+  if C_QuestLog and C_QuestLog.RequestLoadQuestByID then pcall(C_QuestLog.RequestLoadQuestByID, key) end
+  return "퀘스트 #" .. key
+end
+
+-- 지금 진행 중인가 (게임에 직접 묻는다: 목록 읽기가 잠깐 실패해도 안전하게)
+local function onQuest(qid)
+  if active[qid] then return true end
+  if type(qid) ~= "number" then return false end
+  if C_QuestLog and C_QuestLog.IsOnQuest then return C_QuestLog.IsOnQuest(qid) and true or false end
+  if C_QuestLog and C_QuestLog.GetLogIndexForQuestID then return C_QuestLog.GetLogIndexForQuestID(qid) ~= nil end
+  return false
+end
+
+-- 퀘스트 관계 데이터 (QuestData.lua, QuestieDB 에서 뽑음) -----------------------------
+local playerRace, playerClass
+local function hasBit(mask, n) return math.floor(mask / 2 ^ n) % 2 == 1 end
+-- 이 캐릭터가 할 수 있는 퀘스트인가 (종족·직업 제한)
+local function questAllowed(qid)
+  local r = ns.QuestRules and ns.QuestRules[qid]
+  if not r then return true end
+  if r[1] > 0 and playerRace and not hasBit(r[1], playerRace - 1) then return false end
+  if r[2] > 0 and playerClass and not hasBit(r[2], playerClass - 1) then return false end
+  return true
+end
+-- 더는 할 일이 없는 퀘스트인가: 끝냈거나, 같이 못 하는 다른 퀘스트를 끝냄 (반복 퀘스트는 끝나지 않음)
+local function questClosed(qid)
+  local r = ns.QuestRules and ns.QuestRules[qid]
+  if r and r[4] == 1 then return false end
+  if isDone(qid) then return true end
+  if r then for _, x in ipairs(r[3]) do if isDone(x) then return true end end end
+  return false
+end
+-- 데이터 기준 판정: nil = 데이터에 없음
+local function classifyByData(id)
+  local rel = ns.QuestItems and ns.QuestItems[id]
+  if not rel then return nil end
+  local mine, open = {}, nil
+  for _, q in ipairs(rel) do
+    if questAllowed(q) then mine[#mine + 1] = q end
+  end
+  if #mine == 0 then return "unknown", "퀘스트 아이템이지만 어느 퀘스트에 쓰는지 정보 없음", nil end
+  for _, q in ipairs(mine) do
+    if onQuest(q) then return "need", "진행 중: " .. questTitle(q), q end
+  end
+  for _, q in ipairs(mine) do
+    if not questClosed(q) then open = open or q end
+  end
+  if open then
+    if cdb.dropped[open] then return "dropped", "포기한 퀘스트: " .. questTitle(open), open end
+    return "later", "아직 안 한 퀘스트에 씀: " .. questTitle(open), open
+  end
+  return "done", "끝낸 퀘스트: " .. questTitle(mine[1]) .. (#mine > 1 and (" 외 " .. (#mine - 1) .. "개") or ""), mine[1]
 end
 
 local function classify(id, name, startQid, startActive)
@@ -200,6 +255,9 @@ local function classify(id, name, startQid, startActive)
       if active[key] then return "need", questTitle(key), key end
     end
   end
+  -- 퀘스트 관계 데이터 (연퀘 포함: 관련 퀘스트가 전부 끝나야 '지워도 됨')
+  local k, why, q = classifyByData(id)
+  if k then return k, why, q end
   -- 퀘스트를 시작하는 아이템
   if startQid then
     if startActive or active[startQid] then return "need", "진행 중: " .. questTitle(startQid), startQid end
@@ -216,7 +274,7 @@ local function classify(id, name, startQid, startActive)
     if anyDone then return "done", "끝낸 퀘스트: " .. questTitle(k), k end
     if anyDropped then return "dropped", "포기한 퀘스트: " .. questTitle(k), k end
   end
-  return "unknown", "진행 중 퀘스트 목표에 없음 (다음 퀘스트에 쓰일 수도)", nil
+  return "unknown", "퀘스트 정보 없음 — 지우지 않습니다 (필요 없으면 직접 버리세요)", nil
 end
 
 local function scanBags()
@@ -260,6 +318,21 @@ local function deleteItem(it)
   if InCombatLockdown and InCombatLockdown() then say(NG .. "전투 중에는 못 지웁니다.|r") return false end
   local id = slotInfo(it.bag, it.slot)
   if id ~= it.id then say(NG .. "가방이 바뀌었습니다. 다시 확인합니다.|r") return false end
+  -- 마지막 안전 확인: 관련 퀘스트 중 하나라도 진행 중이면 절대 안 지운다 (지우면 퀘스트가 포기될 수 있음)
+  local related = {}
+  for _, q in ipairs((ns.QuestItems and ns.QuestItems[it.id]) or {}) do related[#related + 1] = q end
+  for q in pairs(db.links[it.id] or {}) do related[#related + 1] = q end
+  local sq = slotQuest(it.bag, it.slot)
+  if sq then related[#related + 1] = sq end
+  for _, q in ipairs(related) do
+    if onQuest(q) then
+      say(NG .. "안 지웠습니다:|r 진행 중인 퀘스트 '" .. questTitle(q) .. "' 에 쓰는 아이템입니다.")
+      it.kind, it.why = "need", "진행 중: " .. questTitle(q)
+      return false
+    end
+  end
+  local k = classify(it.id, it.name, sq)
+  if k ~= "done" and k ~= "dropped" then say(NG .. "안 지웠습니다:|r 다시 확인해 보니 지워도 되는 아이템이 아닙니다.") return false end
   ClearCursor()
   Bag.pickup(it.bag, it.slot)
   if CursorHasItem and not CursorHasItem() then ClearCursor() return false end
@@ -271,14 +344,15 @@ end
 -- 4. 정리 창 --------------------------------------------------------------------------
 
 local win, rows, refreshWindow = nil, {}, nil
-local KIND_ORDER = { done = 1, dropped = 2, unknown = 3, need = 4 }
+local KIND_ORDER = { done = 1, dropped = 2, unknown = 3, later = 4, need = 5 }
 local KIND_LABEL = {
   done = OK .. "지워도 됨|r", dropped = WARN .. "포기한 퀘스트|r",
-  unknown = DIM .. "확인 필요|r", need = "|cff88bbff진행 중|r",
+  unknown = DIM .. "정보 없음|r", need = "|cff88bbff진행 중|r", later = "|cff88bbff나중에 씀|r",
 }
-local confirmKey      -- 확인 필요 아이템은 두 번 눌러야 지운다
+local confirmKey      -- 포기한 퀘스트 아이템은 두 번 눌러야 지운다
 
 local function deletable(it) return it.kind == "done" end   -- 전부 지우기·가방 X 표시 대상 (포기한 퀘스트는 하나씩)
+local function canDelete(it) return it.kind == "done" or it.kind == "dropped" end
 
 local function makeRow(parent, i)
   local r = CreateFrame("Frame", nil, parent)
@@ -311,7 +385,7 @@ local function makeRow(parent, i)
   r.del:SetScript("OnClick", function()
     local it = r.item
     if not it then return end
-    if it.kind == "unknown" then
+    if it.kind == "dropped" then
       local k = it.bag .. ":" .. it.slot
       if confirmKey ~= k then
         confirmKey = k
@@ -367,7 +441,7 @@ local function buildWindow()
   tip:SetPoint("BOTTOMLEFT", 18, 14)
   tip:SetWidth(480)
   tip:SetJustifyH("LEFT")
-  tip:SetText("'확인 필요' 는 두 번 눌러야 지워집니다. 퀘스트를 받은 뒤 들어온 아이템부터 정확히 연결됩니다.  ESC: 닫기")
+  tip:SetText("관련 퀘스트(연퀘 포함)를 모두 끝낸 아이템만 지울 수 있습니다. 포기한 퀘스트 것은 두 번 눌러야 지워집니다.  ESC: 닫기")
   win:SetScript("OnShow", function() confirmKey = nil refreshWindow() end)
 end
 
@@ -390,7 +464,7 @@ refreshWindow = function()
     r.why:SetText(DIM .. (it.why or "") .. "|r")
     local k = it.bag .. ":" .. it.slot
     r.del:SetText(confirmKey == k and (NG .. "정말?|r") or "지우기")
-    r.del:SetShown(it.kind ~= "need")
+    r.del:SetShown(canDelete(it))
     r:Show()
   end
   for i = #sorted + 1, #rows do rows[i]:Hide() rows[i].item = nil end
@@ -530,10 +604,10 @@ local function refresh()
   scanQueued = false
   local old = active
   local ok, a, b = pcall(scanLog)
+  local logOK = ok
   if ok then
     active, objIndex = a, b
   else
-    active, objIndex = {}, {}
     if not logWarned then logWarned = true say(NG .. "퀘스트 목록을 못 읽었습니다 (가방 정리는 계속 동작):|r " .. tostring(a)) end
   end
   -- 목표를 다 채운 퀘스트 알림
@@ -549,9 +623,10 @@ local function refresh()
     end
   end
   -- 목록에서 사라진 퀘스트: 보고했으면(QUEST_TURNED_IN) 끝, 아니면 포기
-  if logReady then
+  -- 로딩 중엔 목록이 잠깐 비어 보일 수 있다 → 목록을 제대로 읽었고, 비어 있지 않고, 게임도 "진행 중 아님" 이라 할 때만
+  if logReady and logOK and next(active) ~= nil then
     for key in pairs(old) do
-      if not active[key] and not cdb.done[key] and not questDoneFlag(key) then
+      if not active[key] and not cdb.done[key] and not questDoneFlag(key) and not onQuest(key) then
         cdb.dropped[key] = true
       end
     end
@@ -598,7 +673,10 @@ ev:SetScript("OnEvent", function(_, event, a1, a2)
     db.titles = db.titles or {}
     cdb.done = cdb.done or {}
     cdb.dropped = cdb.dropped or {}
+    if not db.v2 then cdb.dropped = {} db.v2 = true end     -- 0.7.x 의 잘못된 '포기' 기록 지움
   elseif event == "PLAYER_LOGIN" then
+    playerRace = select(3, UnitRace("player"))
+    playerClass = select(3, UnitClass("player"))
     for _, e in ipairs({ "QUEST_LOG_UPDATE", "QUEST_ACCEPTED", "QUEST_TURNED_IN", "BAG_UPDATE_DELAYED", "UNIT_QUEST_LOG_CHANGED" }) do
       pcall(ev.RegisterEvent, ev, e)
     end
@@ -669,7 +747,7 @@ local function showHelp()
   say("버전 " .. versionText())
   print(TAG .. "|cffffd100끝낸 퀘스트의 아이템이 가방 칸을 먹지 않게 찾아서 지워 줍니다.|r")
   print(TAG .. "  " .. KEY .. "/퀘스트|r            가방의 퀘스트 아이템 정리 창")
-  print(TAG .. "  " .. DIM .. "  지워도 됨 = 끝낸 퀘스트 것 · 포기한 퀘스트 = 다시 받을 거면 두기 · 확인 필요 = 두 번 눌러 지움|r")
+  print(TAG .. "  " .. DIM .. "  지워도 됨 = 관련 퀘스트(연퀘 포함)를 다 끝냄 · 나중에 씀 = 아직 안 한 퀘스트에 필요 · 정보 없음 = 안 지움|r")
   for _, k in ipairs(OPT_ORDER) do
     local o = OPT_NAMES[k]
     if k == "레벨" and not QuestLog_Update then o = nil end

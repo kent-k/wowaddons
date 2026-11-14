@@ -55,6 +55,7 @@ addons/              애드온 하나당 폴더 하나 (폴더 이름 = .toc 이
   QoLKit/            편의 모음: 빠른 줍기, 회색 템 판매, 자동 수리, 쿨다운 숫자, 우편 모두 받기, 퀘스트 빠른 진행 (/편의)
   KillShot/          킬각: 운영 중지 (블리자드가 전투 기록·전투 중 체력을 막음) — 안내만 함
   QuestKit/          퀘스트 비서: 끝낸 퀘스트 아이템 찾아서 지우기, 툴팁 진행도, 완료 알림 (/퀘스트)
+                     QuestData.lua 는 QuestieDB(GPLv3) 에서 뽑은 아이템↔퀘스트 관계 (tools/questdb/build_questdb.py)
 installer/
   WowAddonHelper/    애드온 도우미 (C# WinForms, .NET Framework 4.8 → 런타임 설치 불필요)
 tools/
