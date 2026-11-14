@@ -46,12 +46,16 @@ local function slotQuest(bag, slot)
     return qid, active
   end
 end
+-- 아이템 API: 최신 클라이언트는 C_Item 아래로 옮겨짐 (전역 GetItemInfo 없음)
+local itemInfo = (C_Item and C_Item.GetItemInfo) or GetItemInfo
+local itemInfoInstant = (C_Item and C_Item.GetItemInfoInstant) or GetItemInfoInstant
+local function itemName(id) return (itemInfo(id)) end
 local function itemClass(id)
-  if GetItemInfoInstant then
-    local _, _, _, _, _, classID = GetItemInfoInstant(id)
+  if itemInfoInstant then
+    local _, _, _, _, _, classID = itemInfoInstant(id)
     if classID then return classID end
   end
-  local r = { GetItemInfo(id) }
+  local r = { itemInfo(id) }
   return r[12]
 end
 local function questDoneFlag(qid)
@@ -210,7 +214,7 @@ local function scanBags()
         nowPresent[id] = true
         local startQid, startActive = slotQuest(bag, slot)
         local cls = itemClass(id)
-        local name = (lnk and lnk:match("%[(.-)%]")) or GetItemInfo(id)
+        local name = (lnk and lnk:match("%[(.-)%]")) or itemName(id)
         local isObj = name and objIndex[name]
         if cls == QUEST_CLASS or startQid or isObj then
           -- 배우기: 목표와 이름이 같으면 그 퀘스트와 연결
@@ -445,7 +449,7 @@ local function addItemLines(tt, data)
   local _, lnk = tt:GetItem()
   local id = (data and type(data.id) == "number" and data.id) or (lnk and tonumber(lnk:match("item:(%d+)")))
   if not id or secret(id) then return end
-  lnk = lnk or ("[" .. (GetItemInfo(id) or "") .. "]")
+  lnk = lnk or ("[" .. (itemName(id) or "") .. "]")
   local it = id and byID[id]
   if it then
     local color = (it.kind == "done" and OK) or (it.kind == "dropped" and WARN) or (it.kind == "need" and "|cff88bbff") or DIM
