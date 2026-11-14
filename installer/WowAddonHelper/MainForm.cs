@@ -26,6 +26,10 @@ namespace WowAddonHelper
 
         string addonsDir;
         ReleaseInfo release;
+        // 창을 열어 둔 동안에도 새 릴리스를 확인한다 (5분마다 + 창으로 돌아올 때, 최소 2분 간격)
+        readonly Timer updateTimer = new Timer { Interval = 5 * 60 * 1000 };
+        DateTime lastCheck = DateTime.MinValue;
+        bool busy;
         InstalledState installed;
         readonly List<AddonRow> rows = new List<AddonRow>();
         Rectangle titleBar;
@@ -92,6 +96,9 @@ namespace WowAddonHelper
                 addonsDir = Core.LoadGameAddOns();
                 UpdatePathLabel();
                 await LoadAsync();
+                updateTimer.Tick += async (s2, e2) => await CheckForUpdateAsync();
+                updateTimer.Start();
+                Activated += async (s2, e2) => { if ((DateTime.Now - lastCheck).TotalMinutes >= 2) await CheckForUpdateAsync(); };
                 if (SnapshotPath != null)
                 {
                     // 화면 확인용: 화면 캡처 없이 창 자체를 그림으로 저장하고 종료 (--snapshot <png>)
@@ -142,6 +149,7 @@ namespace WowAddonHelper
 
         void SetBusy(bool busy)
         {
+            this.busy = busy;
             applyButton.Enabled = refreshButton.Enabled = pathButton.Enabled = !busy;
             UseWaitCursor = busy;
         }
@@ -171,6 +179,7 @@ namespace WowAddonHelper
             try
             {
                 release = await Task.Run(() => Core.FetchLatestRelease());
+                lastCheck = DateTime.Now;
                 if (await Task.Run(() => Core.UpdateSelf(release)))
                 {
                     SetStatus("도우미 새 버전을 받았습니다. 다시 시작합니다...", Theme.Green);
@@ -187,7 +196,29 @@ namespace WowAddonHelper
             finally { SetBusy(false); }
         }
 
-        void RefreshRows()
+        /// <summary>조용히 새 릴리스를 확인한다. 새 버전이면 체크 상태를 그대로 두고 목록을 다시 그린다.</summary>
+        async Task CheckForUpdateAsync()
+        {
+            if (busy || release == null) return;
+            lastCheck = DateTime.Now;
+            ReleaseInfo latest;
+            try { latest = await Task.Run(() => Core.FetchLatestRelease()); }
+            catch { return; }                      // 네트워크 실패는 다음 확인 때 다시
+            if (busy || latest.Version == release.Version) return;
+            if (await Task.Run(() => Core.UpdateSelf(latest)))
+            {
+                Process.Start(Core.InstalledExe, "--restarted");
+                Close();
+                return;
+            }
+            var keep = rows.ToDictionary(r => r.Info.Name, r => r.Checked, StringComparer.OrdinalIgnoreCase);
+            release = latest;
+            RefreshRows(keep);
+            SetStatus($"새 버전 v{release.Version} 이(가) 나왔습니다. [선택대로 적용]을 누르세요.", Theme.Yellow);
+            Core.Log($"창 열린 중 새 버전 발견: v{release.Version}");
+        }
+
+        void RefreshRows(Dictionary<string, bool> keepChecks = null)
         {
             installed = addonsDir != null ? Core.ReadInstalled(addonsDir) : null;
             list.SuspendLayout();
@@ -200,7 +231,9 @@ namespace WowAddonHelper
             bool firstRun = installed == null;
             foreach (var a in release.Addons.OrderBy(a => a.Dev).ThenBy(a => a.Title))
             {
-                var row = new AddonRow { Info = a, Dock = DockStyle.Top, Checked = have.Contains(a.Name) || (firstRun && !a.Dev) };
+                bool check = have.Contains(a.Name) || (firstRun && !a.Dev);
+                if (keepChecks != null && keepChecks.TryGetValue(a.Name, out var kept)) check = kept;
+                var row = new AddonRow { Info = a, Dock = DockStyle.Top, Checked = check };
                 bool isInstalled = have.Contains(a.Name);
                 if (!isInstalled) { row.Status = "설치 안 됨"; row.StatusColor = Theme.TextDim; }
                 else if (installed.Version == release.Version) { row.Status = "최신 v" + release.Version; row.StatusColor = Theme.Green; }
