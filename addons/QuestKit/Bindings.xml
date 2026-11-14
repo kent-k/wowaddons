@@ -1,0 +1,5 @@
+<Bindings>
+  <Binding name="QUESTKIT_TOGGLE" header="QUESTKIT" category="ADDONS">
+    QuestKit_Toggle()
+  </Binding>
+</Bindings>

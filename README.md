@@ -54,6 +54,7 @@ addons/              애드온 하나당 폴더 하나 (폴더 이름 = .toc 이
   MacroKit/          매크로 공방: 템플릿 골라 빈칸 채우면 매크로 생성 (/매공)
   QoLKit/            편의 모음: 빠른 줍기, 회색 템 판매, 자동 수리, 쿨다운 숫자, 우편 모두 받기, 퀘스트 빠른 진행 (/편의)
   KillShot/          킬각: 대상을 한 방에 잡을 수 있는 스킬을 단축바에서 반짝임 (/킬각)
+  QuestKit/          퀘스트 비서: 끝낸 퀘스트 아이템 찾아서 지우기, 툴팁 진행도, 완료 알림 (/퀘스트)
 installer/
   WowAddonHelper/    애드온 도우미 (C# WinForms, .NET Framework 4.8 → 런타임 설치 불필요)
 tools/
