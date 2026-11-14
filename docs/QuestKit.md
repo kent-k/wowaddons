@@ -44,7 +44,16 @@
 | `/퀘스트 자동창` | 보고 뒤 정리 창 자동 열기 |
 | `/퀘스트 표시` | 가방 칸에 빨간 X (`ContainerFrame_Update` 뒤) |
 
-## 5. 한계
+## 5. 클라이언트 API (v0.7.1)
+
+WoW 포에버는 최신 엔진이다 (`GetQuestLogTitle`, `OnTooltipSetItem`, `ContainerFrame_Update` 없음). v0.7.0 은 옛 API 로 짜서 퀘스트 목록을 읽다 오류가 나 가방 스캔까지 멈췄다 ("가방에 퀘스트 아이템이 없습니다").
+- 퀘스트: `C_QuestLog.GetInfo` / `GetQuestObjectives` (목표 문장이 `"3/10 이름"` 순서) 우선, 옛 API 는 대체.
+- 툴팁: `TooltipDataProcessor.AddTooltipPostCall`. 몹 이름이 비밀 값이면 건너뜀.
+- 가방 X 표시: 통합 가방 포함 `frame:EnumerateValidItems()`, `UpdateItems` 뒤에 그림. 재료 가방(5) 포함.
+- 퀘스트 목록 [레벨]: 옛 퀘스트 창(`QuestLog_Update`)이 없으면 꺼짐.
+- 퀘스트 목록·가방 읽기는 `pcall` 로 감싸 하나가 실패해도 다른 것은 동작하고, 실패 이유를 채팅에 한 번 알린다.
+
+## 6. 한계
 
 - 드랍 몹 정보가 없어서 "이 몹이 목표 아이템을 떨군다" 는 모른다 (처치 목표만 몹 툴팁에 표시).
 - 퀘스트 번호를 주지 않는 클라이언트면 연결 배우기가 안 됨 → 목표 이름 일치만 동작.

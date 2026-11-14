@@ -80,19 +80,54 @@ local active = {}       -- [퀘스트 키] = { title, level, complete, objs = { 
 local objIndex = {}     -- [목표 이름] = { {key, obj}, ... }
 local logReady = false
 
+-- 퀘스트 목록 한 줄: title, level, isHeader, isComplete, questID, 목표 목록 { {text, kind, finished, have, need} }
+-- 새 API (C_QuestLog) 를 먼저 쓰고, 없으면 옛 API
+local function questEntries()
+  local out = {}
+  local QL = C_QuestLog
+  if QL and QL.GetInfo and QL.GetNumQuestLogEntries then
+    for i = 1, (QL.GetNumQuestLogEntries() or 0) do
+      local info = QL.GetInfo(i)
+      if info and info.title and not info.isHeader and not info.isHidden then
+        local qid = info.questID
+        local objs = {}
+        local list = (qid and QL.GetQuestObjectives and QL.GetQuestObjectives(qid)) or {}
+        for _, o in ipairs(list) do
+          objs[#objs + 1] = { o.text, o.type, o.finished, o.numFulfilled, o.numRequired }
+        end
+        local complete = info.isComplete == 1 or info.isComplete == true
+        if qid and QL.IsComplete then complete = complete or QL.IsComplete(qid) end
+        out[#out + 1] = { info.title, info.level, i, complete, qid, objs }
+      end
+    end
+  elseif GetNumQuestLogEntries and GetQuestLogTitle then
+    for i = 1, (GetNumQuestLogEntries() or 0) do
+      local title, level, _, isHeader, _, isComplete, _, qid = GetQuestLogTitle(i)
+      if title and not isHeader then
+        local objs = {}
+        for j = 1, (GetNumQuestLeaderBoards and GetNumQuestLeaderBoards(i) or 0) do
+          local text, kind, finished = GetQuestLogLeaderBoard(j, i)
+          objs[#objs + 1] = { text, kind, finished }
+        end
+        out[#out + 1] = { title, level, i, (isComplete == 1 or isComplete == true), qid, objs }
+      end
+    end
+  end
+  return out
+end
+
 local function scanLog()
   local new, idx = {}, {}
-  local n = GetNumQuestLogEntries and GetNumQuestLogEntries() or 0
-  for i = 1, n do
-    local title, level, _, isHeader, _, isComplete, _, qid = GetQuestLogTitle(i)
-    if title and not isHeader then
+  for _, e in ipairs(questEntries()) do
+    local title, level, i, isComplete, qid, list = e[1], e[2], e[3], e[4], e[5], e[6]
+    do
       local key = qid or title
-      local q = { title = title, level = level, index = i, objs = {}, complete = (isComplete == 1 or isComplete == true) }
-      local count = GetNumQuestLeaderBoards and GetNumQuestLeaderBoards(i) or 0
-      local allDone = count > 0
-      for j = 1, count do
-        local text, kind, finished = GetQuestLogLeaderBoard(j, i)
+      local q = { title = title, level = level, index = i, objs = {}, complete = isComplete and true or false }
+      local allDone = #list > 0
+      for _, ob in ipairs(list) do
+        local text, kind, finished = ob[1], ob[2], ob[3]
         local name, have, need = parseObjective(text)
+        have, need = have or ob[4], need or ob[5]
         local o = { name = name, have = have, need = need, kind = kind, done = finished and true or false, text = text }
         q.objs[#q.objs + 1] = o
         if not o.done then allDone = false end
@@ -168,7 +203,7 @@ local function scanBags()
   if not logReady then return end
   local now = GetTime()
   local list, ids, nowPresent = {}, {}, {}
-  for bag = 0, (NUM_BAG_SLOTS or 4) do
+  for bag = 0, (NUM_TOTAL_EQUIPPED_BAG_SLOTS or NUM_BAG_SLOTS or 4) do   -- 재료 가방(5) 포함
     for slot = 1, (Bag.slots(bag) or 0) do
       local id, lnk, count, icon = slotInfo(bag, slot)
       if id then
@@ -349,7 +384,7 @@ end
 local function toggleWindow(show)
   if not win then buildWindow() end
   if show == nil then show = not win:IsShown() end
-  scanBags()
+  pcall(scanBags)
   win:SetShown(show)
   if show then refreshWindow() end
 end
@@ -374,10 +409,24 @@ local function markButton(btn, bag, slot)
   if btn.questKitMark then btn.questKitMark:SetShown(show and true or false) end
 end
 
-local function markBags()
+local function bagFrames()
+  local t = {}
+  if ContainerFrameCombinedBags then t[#t + 1] = ContainerFrameCombinedBags end
   for f = 1, (NUM_CONTAINER_FRAMES or 13) do
     local frame = _G["ContainerFrame" .. f]
-    if frame and frame:IsShown() and frame.GetID then
+    if frame then t[#t + 1] = frame end
+  end
+  return t
+end
+
+local function markBags()
+  for _, frame in ipairs(bagFrames()) do
+    if frame:IsShown() and frame.EnumerateValidItems then
+      -- 새 가방 UI (통합 가방 포함): 버튼마다 가방 번호를 안다
+      for _, btn in frame:EnumerateValidItems() do
+        if btn.GetBagID then markButton(btn, btn:GetBagID(), btn:GetID()) end
+      end
+    elseif frame:IsShown() and frame.GetID and frame ~= ContainerFrameCombinedBags then
       local bag, name = frame:GetID(), frame:GetName()
       for j = 1, (frame.size or 36) do
         local btn = _G[name .. "Item" .. j]
@@ -389,11 +438,14 @@ end
 
 -- 6. 툴팁 -----------------------------------------------------------------------------
 
-local function addItemLines(tt)
+local function secret(v) return issecretvalue and issecretvalue(v) end
+
+local function addItemLines(tt, data)
   if not db.opt.tooltip then return end
   local _, lnk = tt:GetItem()
-  if not lnk then return end
-  local id = tonumber(lnk:match("item:(%d+)"))
+  local id = (data and type(data.id) == "number" and data.id) or (lnk and tonumber(lnk:match("item:(%d+)")))
+  if not id or secret(id) then return end
+  lnk = lnk or ("[" .. (GetItemInfo(id) or "") .. "]")
   local it = id and byID[id]
   if it then
     local color = (it.kind == "done" and OK) or (it.kind == "dropped" and WARN) or (it.kind == "need" and "|cff88bbff") or DIM
@@ -416,7 +468,7 @@ end
 local function addUnitLines(tt)
   if not db.opt.tooltip then return end
   local unitName = tt:GetUnit()
-  if not unitName or unitName == "" then return end
+  if not unitName or secret(unitName) or unitName == "" then return end
   local added
   for key, q in pairs(active) do
     for _, o in ipairs(q.objs) do
@@ -453,11 +505,17 @@ end
 
 -- 8. 이벤트 ---------------------------------------------------------------------------
 
-local scanQueued = false
+local scanQueued, logWarned, bagWarned = false, false, false
 local function refresh()
   scanQueued = false
   local old = active
-  active, objIndex = scanLog()
+  local ok, a, b = pcall(scanLog)
+  if ok then
+    active, objIndex = a, b
+  else
+    active, objIndex = {}, {}
+    if not logWarned then logWarned = true say(NG .. "퀘스트 목록을 못 읽었습니다 (가방 정리는 계속 동작):|r " .. tostring(a)) end
+  end
   -- 목표를 다 채운 퀘스트 알림
   if logReady and db.opt.alert then
     for key, q in pairs(active) do
@@ -480,7 +538,8 @@ local function refresh()
   end
   for key in pairs(active) do cdb.dropped[key] = nil end
   logReady = true
-  scanBags()
+  local ok2, err = pcall(scanBags)
+  if not ok2 and not bagWarned then bagWarned = true say(NG .. "가방을 못 읽었습니다:|r " .. tostring(err)) end
   refreshWindow()
   markBags()
 end
@@ -523,13 +582,19 @@ ev:SetScript("OnEvent", function(_, event, a1, a2)
     for _, e in ipairs({ "QUEST_LOG_UPDATE", "QUEST_ACCEPTED", "QUEST_TURNED_IN", "BAG_UPDATE_DELAYED", "UNIT_QUEST_LOG_CHANGED" }) do
       pcall(ev.RegisterEvent, ev, e)
     end
-    if GameTooltip and GameTooltip.HookScript then
-      pcall(GameTooltip.HookScript, GameTooltip, "OnTooltipSetItem", addItemLines)
-      pcall(GameTooltip.HookScript, GameTooltip, "OnTooltipSetUnit", addUnitLines)
+    if TooltipDataProcessor and TooltipDataProcessor.AddTooltipPostCall and Enum and Enum.TooltipDataType then
+      TooltipDataProcessor.AddTooltipPostCall(Enum.TooltipDataType.Item, function(tt, data) if tt == GameTooltip then pcall(addItemLines, tt, data) end end)
+      TooltipDataProcessor.AddTooltipPostCall(Enum.TooltipDataType.Unit, function(tt) if tt == GameTooltip then pcall(addUnitLines, tt) end end)
+    elseif GameTooltip and GameTooltip.HookScript then
+      pcall(GameTooltip.HookScript, GameTooltip, "OnTooltipSetItem", function(tt) pcall(addItemLines, tt) end)
+      pcall(GameTooltip.HookScript, GameTooltip, "OnTooltipSetUnit", function(tt) pcall(addUnitLines, tt) end)
     end
     if hooksecurefunc then
       if QuestLog_Update then hooksecurefunc("QuestLog_Update", function() pcall(decorateQuestLog) end) end
       if ContainerFrame_Update then hooksecurefunc("ContainerFrame_Update", function() pcall(markBags) end) end
+      for _, frame in ipairs(bagFrames()) do
+        if frame.UpdateItems then hooksecurefunc(frame, "UpdateItems", function() pcall(markBags) end) end
+      end
     end
     queue(1)
     if not db.welcomed then
@@ -539,8 +604,8 @@ ev:SetScript("OnEvent", function(_, event, a1, a2)
       say("버전 " .. versionText() .. " 로드됨. 퀘스트 아이템 정리: " .. KEY .. "/퀘스트|r")
     end
   elseif event == "QUEST_ACCEPTED" then
-    local qid = a2
-    if type(qid) ~= "number" and a1 then qid = select(8, GetQuestLogTitle(a1)) end
+    -- 새 클라이언트: (퀘스트 번호) / 옛 클라이언트: (목록 순번, 퀘스트 번호)
+    local qid = a2 or a1
     if type(qid) == "number" then
       local now = GetTime()
       table.insert(pendingAccept, { qid = qid, t = now })
@@ -587,8 +652,11 @@ local function showHelp()
   print(TAG .. "  " .. DIM .. "  지워도 됨 = 끝낸 퀘스트 것 · 포기한 퀘스트 = 다시 받을 거면 두기 · 확인 필요 = 두 번 눌러 지움|r")
   for _, k in ipairs(OPT_ORDER) do
     local o = OPT_NAMES[k]
+    if k == "레벨" and not QuestLog_Update then o = nil end
+    if o then
     local state = db.opt[o[1]] and (OK .. "켜짐|r") or (NG .. "꺼짐|r")
     print(TAG .. ("  %s/퀘스트 %s|r  [%s] %s%s|r"):format(KEY, k, state, DIM, o[2]))
+    end
   end
   print(TAG .. "  " .. KEY .. "/퀘스트 도움말|r     이 안내    영어: " .. KEY .. "/qk|r")
 end
