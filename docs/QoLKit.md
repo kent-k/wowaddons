@@ -19,6 +19,7 @@
 | 우편 모두 받기 | 우편함에 [모두 받기] 버튼. 돈과 아이템을 차례로 받는다 | `GetInboxHeaderInfo`, `TakeInboxMoney`, `TakeInboxItem` | 대금 청구(착불) 우편은 건너뜀. 가방이 꽉 차면 멈춤. 0.3초 간격 |
 | 퀘스트 빠른 진행 | Shift 를 누른 채 NPC 와 대화하면 수락/완료를 자동으로 누른다 | `QUEST_DETAIL`→`AcceptQuest`, `QUEST_PROGRESS`→`CompleteQuest`, `QUEST_COMPLETE`→`GetQuestReward` | 보상을 골라야 하는 퀘스트는 멈춘다 (직접 고르게). 설정에서 "Shift 없이 항상" 선택 가능 |
 | 내 위치(좌표) (v0.8.1) | `/위치`(`/좌표`, `/loc`) 로 지역·좌표 출력, `/위치 채팅` 은 채팅 입력칸에 넣기(자동 전송 안 함), `/위치 표시` 는 화면 좌표 창(끌어 옮김, 위치 저장). 큰 지도 아래에 내 좌표 + 마우스 좌표 | `C_Map.GetBestMapForUnit`, `C_Map.GetPlayerMapPosition`, `WorldMapFrame.ScrollContainer:GetNormalizedCursorPosition` | 인던 안 등 좌표가 막힌 곳은 "좌표 없음". 기본 게임에는 좌표 명령이 없다 |
+| 마법봉 알림 (v0.8.2) | 전투 중 + 적 대상(살아 있음, 공격 가능) + 마법봉 착용 + 사격 자동 반복 아님 + 시전/정신집중 아님 + 멈춰 있음 + 사거리 안, 이 상태가 2초(`/마법봉 초`) 이어지면 화면 가운데에 마법봉 아이콘과 '마법봉!' 깜빡임 + 전투마다 한 번 소리 | `START/STOP_AUTOREPEAT_SPELL`, `GetInventoryItemID(18)` + `C_Item.GetItemInfoInstant`(분류 2/19), `C_Spell.IsSpellInRange(5019)` | 알림은 보안 버튼이 아니라 클릭으로 쏘지는 않는다(보여 주기만). 비밀 값이면 알리지 않음 |
 | 던전 퀘스트 목록 (DungeonNav) | 인던 안에서 지도 창 옆에 그 던전의 퀘스트와 목표 진행도 | 퀘스트 목록의 지역 머리글 = 던전 이름 | 머리글이 접혀 있으면 목표를 못 읽음 → 안내 |
 
 ## 3. 설정 창 (`/편의`)
@@ -47,6 +48,7 @@ addons/QoLKit/
   Mail.lua        우편 모두 받기
   Quest.lua       퀘스트 빠른 진행
   Coords.lua      내 위치(좌표): /위치, 지도 좌표, 화면 좌표 창
+  Wand.lua        마법봉 알림
 addons/DungeonNav/DungeonNav.lua   던전 퀘스트 목록 패널 추가
 ```
 

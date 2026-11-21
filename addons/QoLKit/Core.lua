@@ -174,7 +174,7 @@ ev:SetScript("OnEvent", function(_, event, arg1)
     end
     if not QoLKitDB.welcomed then
       QoLKitDB.welcomed = true
-      say("설치 감사합니다! 빠른 줍기·회색 템 판매·자동 수리·쿨다운 숫자·우편 모두 받기·퀘스트 빠른 진행·지도 좌표가 켜졌습니다. 내 좌표: " .. KEY .. "/위치|r.  켜고 끄기: " .. KEY .. "/편의|r")
+      say("설치 감사합니다! 빠른 줍기·회색 템 판매·자동 수리·쿨다운 숫자·우편 모두 받기·퀘스트 빠른 진행·지도 좌표·마법봉 알림이 켜졌습니다. 내 좌표: " .. KEY .. "/위치|r.  켜고 끄기: " .. KEY .. "/편의|r")
     else
       say("버전 " .. versionText() .. " 로드됨. 설정: " .. KEY .. "/편의|r")
     end
