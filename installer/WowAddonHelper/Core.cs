@@ -19,6 +19,7 @@ namespace WowAddonHelper
         public string Title;
         public string Notes;
         public bool Dev;   // 진단용 애드온(X-Dev): 기본으로 체크하지 않는다
+        public string Since;   // 이 버전부터 새 애드온으로 자동 설치 (X-Since). 그보다 옛 버전을 쓰던 사람에게 체크해 준다
         public List<string> Usage = new List<string>();   // [사용법] 창에 보여 줄 안내 (toc 의 X-Usage-N)
     }
 
@@ -194,6 +195,7 @@ namespace WowAddonHelper
                         Title = d.TryGetValue("title", out var t) ? t as string : (string)d["name"],
                         Notes = d.TryGetValue("notes", out var n) ? n as string ?? "" : "",
                         Dev = d.TryGetValue("dev", out var dv) && dv is bool b && b,
+                        Since = d.TryGetValue("since", out var sv) ? sv as string : null,
                         Usage = d.TryGetValue("usage", out var u) && u is System.Collections.ArrayList ul
                             ? ul.OfType<string>().ToList() : new List<string>(),
                     });
@@ -393,6 +395,17 @@ namespace WowAddonHelper
         public static bool IsNewer(string release, string current)
         {
             return Version.TryParse(release, out var r) && Version.TryParse(current, out var c) && r > c;
+        }
+
+        /// <summary>
+        /// 쓰던 사람에게는 처음 보는 새 애드온인가: 설치 기록이 X-Since 보다 옛 버전이고, 아직 안 깔려 있음.
+        /// 그 뒤에 직접 체크를 푼 사람은 기록 버전이 이미 높으므로 다시 깔지 않는다.
+        /// </summary>
+        public static bool IsNewAddon(AddonInfo a, InstalledState st)
+        {
+            if (a.Dev || st == null || string.IsNullOrEmpty(a.Since)) return false;
+            if (st.Addons.Contains(a.Name, StringComparer.OrdinalIgnoreCase)) return false;
+            return IsNewer(a.Since, st.Version ?? "0.0.0");
         }
 
         /// <summary>새 설치기를 받아 %LOCALAPPDATA% 사본을 교체한다. 교체했으면 true.</summary>

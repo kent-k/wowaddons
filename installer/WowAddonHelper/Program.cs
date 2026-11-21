@@ -55,11 +55,18 @@ namespace WowAddonHelper
                 if (dir == null) { Core.Log("자동 업데이트: 게임 폴더를 찾지 못함"); return 1; }
                 var installed = Core.ReadInstalled(dir);
                 var rel = Core.FetchLatestRelease();
-                Core.UpdateSelf(rel);
+                if (Core.UpdateSelf(rel))
+                {
+                    // 애드온 맞추기는 새 도우미가 한다 (새 규칙, 예: 새 애드온 자동 설치). 이 프로세스가 끝나면 이어받는다
+                    System.Diagnostics.Process.Start(Core.InstalledExe, "--auto --restarted");
+                    return 0;
+                }
                 if (installed == null || installed.Addons.Count == 0) { Core.Log("자동 업데이트: 설치된 애드온 없음"); return 0; }
                 if (installed.Version == rel.Version) { Core.Log($"자동 업데이트: 이미 최신 v{rel.Version}"); return 0; }
                 // 릴리스에서 빠진 애드온은 지우고, 남은 것만 다시 깐다
                 var keep = installed.Addons.Where(n => rel.Addons.Count == 0 || rel.Addons.Any(a => a.Name.Equals(n, StringComparison.OrdinalIgnoreCase))).ToList();
+                // 쓰던 버전 뒤에 새로 나온 애드온은 같이 깐다
+                foreach (var a in rel.Addons.Where(a => Core.IsNewAddon(a, installed))) { keep.Add(a.Name); Core.Log("자동 업데이트: 새 애드온 " + a.Name); }
                 Core.Apply(dir, rel, keep, _ => { });
                 return 0;
             }

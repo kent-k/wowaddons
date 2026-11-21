@@ -11,6 +11,7 @@
 #
 # .toc 에서 읽는 정보 (애드온 도우미 목록에 표시)
 #   ## Title:  이름        ## Notes:  설명        ## X-Dev: 1   진단용 애드온 (기본 체크 안 함)
+#   ## X-Since: 0.9.1   새 애드온: 이 버전보다 옛 버전을 쓰던 사람에게도 도우미가 자동으로 깔아 준다
 #   ## X-Usage-1: ...  ## X-Usage-2: ...   애드온 도우미의 [사용법] 창에 한 줄씩 보여 줄 안내
 param(
     [switch]$Zip,
@@ -77,6 +78,7 @@ foreach ($dir in Get-ChildItem (Join-Path $root 'addons') -Directory) {
         title = $(if ($title) { $title } else { $dir.Name })
         notes = Strip-Color $meta['Notes']
         dev   = ($meta['X-Dev'] -in @('1', 'true', 'yes'))
+        since = $meta['X-Since']
         usage = @($meta.Keys | Where-Object { $_ -match '^X-Usage-(\d+)$' } |
                   Sort-Object { [int]($_ -replace '^X-Usage-', '') } |
                   ForEach-Object { Strip-Color $meta[$_] })

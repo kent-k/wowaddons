@@ -231,7 +231,7 @@ namespace WowAddonHelper
             bool firstRun = installed == null;
             foreach (var a in release.Addons.OrderBy(a => a.Dev).ThenBy(a => a.Title))
             {
-                bool check = have.Contains(a.Name) || (firstRun && !a.Dev);
+                bool check = have.Contains(a.Name) || (firstRun && !a.Dev) || Core.IsNewAddon(a, installed);
                 if (keepChecks != null && keepChecks.TryGetValue(a.Name, out var kept)) check = kept;
                 var row = new AddonRow { Info = a, Dock = DockStyle.Top, Checked = check };
                 bool isInstalled = have.Contains(a.Name);
