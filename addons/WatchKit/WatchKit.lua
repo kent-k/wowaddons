@@ -202,7 +202,7 @@ ns.KIND_TEXT = { spell = "기술", buff = "버프", auto = "자동 반복", item
 
 -- 아이콘 줄 ---------------------------------------------------------------------------
 
-local bar, icons = nil, {}
+local bar, icons, emptyBtn = nil, {}, nil
 
 local function savePos()
   local p, _, rp, x, y = bar:GetPoint()
@@ -282,12 +282,23 @@ function ns.LayoutBar()
   local n = math.max(#list, 1)
   bar:SetSize(n * size + (n - 1) * gap, size)
   bar.handle:SetShown(not ns.db.locked)
+  if not emptyBtn then
+    emptyBtn = CreateFrame("Button", nil, bar)
+    emptyBtn:SetAllPoints()
+    local t = emptyBtn:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    t:SetPoint("CENTER")
+    t:SetText("표시판: 비어 있음 — 눌러서 추가")
+    emptyBtn:SetScript("OnClick", function() if WatchKit_Toggle then WatchKit_Toggle() end end)
+  end
+  bar.handle:SetFrameLevel(emptyBtn:GetFrameLevel() + 2)
+  emptyBtn:SetShown(#list == 0)
+  if #list == 0 then bar:SetSize(220, size) end
   ns.UpdateBarVisible()
 end
 
 function ns.UpdateBarVisible()
   if not bar then return end
-  local want = ns.db.showBar ~= false and (#ns.char.list > 0 or not ns.db.locked)
+  local want = ns.db.showBar ~= false
   if want and ns.db.combatOnly and ns.db.locked and not InCombatLockdown() then want = false end
   bar:SetShown(want)
 end
@@ -426,7 +437,7 @@ local ev = CreateFrame("Frame")
 local acc = 0
 ev:SetScript("OnUpdate", function(_, dt)
   acc = acc + dt
-  if acc < 0.2 or not ns.char then return end
+  if acc < 0.2 or not ns.char or not ns.char.list then return end
   acc = 0
   tick()
 end)
@@ -443,10 +454,10 @@ for _, e in ipairs(EVENTS) do pcall(ev.RegisterEvent, ev, e) end
 local function defaults()
   local _, class = UnitClass("player")
   local list = {}
-  if class == "MAGE" or class == "PRIEST" or class == "WARLOCK" then
-    list[1] = { t = "auto", id = 5019, glow = true }
+  if class == "MAGE" or class == "PRIEST" or class == "WARLOCK" or GetInventoryItemID("player", WAND_SLOT) then
+    list[1] = { t = "auto", id = 5019, glow = true, src = "spell" }
   elseif class == "HUNTER" then
-    list[1] = { t = "auto", id = 75, glow = true }
+    list[1] = { t = "auto", id = 75, glow = true, src = "spell" }
   end
   return list
 end
@@ -478,6 +489,11 @@ ev:SetScript("OnEvent", function(_, event, arg1)
       ns.char.list = defaults()
       ns.char.fresh = true
     end
+    if #ns.char.list == 0 and not ns.char.wandOffered and GetInventoryItemID("player", WAND_SLOT) then
+      ns.char.list[1] = { t = "auto", id = 5019, glow = true, src = "spell" }
+      say("마법봉을 차고 있어서 마법봉 사격을 넣었습니다.")
+    end
+    ns.char.wandOffered = true
     if C_Spell and C_Spell.IsAutoRepeatSpell then
       local ok, v = pcall(C_Spell.IsAutoRepeatSpell, 5019)
       if ok and v and not secret(v) then state.repeating = true end
@@ -489,7 +505,7 @@ ev:SetScript("OnEvent", function(_, event, arg1)
       say("설치 감사합니다! 내 기술·버프·아이템을 아이콘으로 보여 주고, 깜빡한 것은 단축바 버튼을 반짝입니다. 설정: " .. KEY .. "/표시판|r")
       if #ns.char.list > 0 then say("마법봉/자동 사격은 미리 넣어 뒀습니다. 다른 것은 " .. KEY .. "/표시판|r 창에 끌어다 놓으세요.") end
     else
-      say("버전 " .. ns.VERSION .. " 로드됨. 설정: " .. KEY .. "/표시판|r")
+      say(("버전 %s 로드됨. 항목 %d개. 설정: %s/표시판|r"):format(ns.VERSION, #ns.char.list, KEY))
     end
   elseif event == "START_AUTOREPEAT_SPELL" then
     state.repeating = true state.idleSince = nil
