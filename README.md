@@ -52,7 +52,8 @@ addons/              애드온 하나당 폴더 하나 (폴더 이름 = .toc 이
   DungeonNav/        던전 네비: 인던 들어가면 그 던전 지도 + 그 던전 퀘스트 목록 자동 표시 (/던전)
   DNProbe/           던전 안 맵/좌표 기능 진단 (진단용)
   MacroKit/          매크로 공방: 템플릿 골라 빈칸 채우면 매크로 생성 (/매공)
-  QoLKit/            편의 모음: 빠른 줍기, 회색 템 판매, 자동 수리, 쿨다운 숫자, 우편 모두 받기, 퀘스트 빠른 진행, 내 좌표, 마법봉 알림 (/편의, /위치, /마법봉)
+  WatchKit/          표시판: 기술·버프·아이템 아이콘 줄 + 깜빡한 것(마법봉 사격, 빠진 버프, 무기 독) 단축바 버튼 반짝 (/표시판)
+  QoLKit/            편의 모음: 빠른 줍기, 회색 템 판매, 자동 수리, 쿨다운 숫자, 우편 모두 받기, 퀘스트 빠른 진행, 내 좌표 (/편의, /위치)
   KillShot/          킬각: 운영 중지 (블리자드가 전투 기록·전투 중 체력을 막음) — 안내만 함
   QuestKit/          퀘스트 비서: 끝낸 퀘스트 아이템 찾아서 지우기, 툴팁 진행도, 완료 알림 (/퀘스트)
                      QuestData.lua 는 QuestieDB(GPLv3) 에서 뽑은 아이템↔퀘스트 관계 (tools/questdb/build_questdb.py)
@@ -62,7 +63,7 @@ tools/
   build.ps1          빌드 (-Zip 릴리스 파일, -Helper 도우미 exe) — 보통 GitHub Actions 가 실행
   release.ps1        릴리스 태그 만들기
   casc/              게임 데이터(CASC) 읽기 도구 (지도 그림 추출, DungeonNav Data.lua 생성, check_spells.py 주문 번호 검증)
-docs/                개발 문서 (MacroKit.md, MacroKit-spells.txt 주문 번호 검증 결과, QoLKit.md, KillShot.md)
+docs/                개발 문서 (MacroKit.md, MacroKit-spells.txt 주문 번호 검증 결과, QoLKit.md, KillShot.md, WatchKit.md)
 .github/workflows/   GitHub Actions 빌드/릴리스
 dist/                빌드 결과 (git 에 안 올림)
 ```

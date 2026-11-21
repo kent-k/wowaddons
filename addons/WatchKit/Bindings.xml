@@ -1,0 +1,5 @@
+<Bindings>
+  <Binding name="WATCHKIT_TOGGLE" header="WATCHKIT" category="ADDONS">
+    WatchKit_Toggle()
+  </Binding>
+</Bindings>
