@@ -277,6 +277,7 @@ local function help()
   print(ns.TAG .. "  " .. KEY .. "/표시판 줄|r      아이콘 줄 켜기/끄기  지금 " .. onoff(ns.db.showBar ~= false))
   print(ns.TAG .. "  " .. KEY .. "/표시판 반짝|r    단축바 버튼 반짝임 켜기/끄기  지금 " .. onoff(ns.db.glow ~= false))
   print(ns.TAG .. "  " .. KEY .. "/표시판 잠금|r    아이콘 줄 옮기기 시작/끝")
+  print(ns.TAG .. "  " .. KEY .. "/마법봉|r         마법봉 알림 (마법봉 사격 항목 넣기 + 상태 보기)")
   print(ns.TAG .. "  " .. KEY .. "/표시판 버프 이름|r  버프 이름으로 추가 (예: /표시판 버프 신의 권능: 인내)")
   print(ns.TAG .. "  밝음 = 켜져 있음/있음, 어두움 = 꺼짐/없음, 빨간 테두리 + 단축바 반짝 = 깜빡한 것")
 end
@@ -308,5 +309,32 @@ SlashCmdList.WATCHKIT = function(msg)
     ns.AddEntry({ t = "buff", name = rest, src = "name" })
   else
     help()
+  end
+end
+
+-- /마법봉: 옛 편의 모음의 마법봉 알림 명령어. 이제 표시판의 '마법봉 사격' 항목이 그 일을 한다
+SLASH_WATCHKITWAND1 = "/마법봉"
+SLASH_WATCHKITWAND2 = "/wand"
+SlashCmdList.WATCHKITWAND = function()
+  if not ns.char or not ns.char.list then return end
+  local found
+  for _, e in ipairs(ns.char.list) do
+    if e.t == "auto" and e.id == 5019 then found = e break end
+  end
+  if not found then
+    ns.AddEntry({ t = "auto", id = 5019, glow = true, src = "spell" })
+  else
+    if found.glow == false then
+      found.glow = true
+      say("마법봉 사격 항목의 단축바 반짝임을 켰습니다.")
+    end
+    ns.RefreshConfig()
+  end
+  local wand = GetInventoryItemID("player", 18) and (OK .. "착용|r") or (NG .. "안 참 — 마법봉을 차야 알립니다|r")
+  say("마법봉 알림은 표시판에 있습니다. 지금 마법봉: " .. wand)
+  print(ns.TAG .. "  전투 중 적을 잡고 마법봉 사격을 안 하면 아이콘 줄의 마법봉에 빨간 테두리 + 단축바의 사격 버튼이 반짝입니다.")
+  print(ns.TAG .. "  아이콘 줄 " .. onoff(ns.db.showBar ~= false) .. " (" .. KEY .. "/표시판 줄|r)   버튼 반짝 " .. onoff(ns.db.glow ~= false) .. " (" .. KEY .. "/표시판 반짝|r)   설정 창: " .. KEY .. "/표시판|r")
+  if ns.db.showBar == false and ns.db.glow == false then
+    print(ns.TAG .. "  " .. NG .. "둘 다 꺼져 있어서 지금은 아무것도 안 보입니다.|r")
   end
 end
